@@ -2,9 +2,10 @@ backend:
   name: github
   repo: Yu-Jadez/blog
   branch: main
+  client_id: Ov23ctx9kExCbu0II7Uh
 
 media_folder: "public/images"
-public_folder: "/images"
+public_folder: "/blog/images"
 
 collections:
   - name: "essays"
