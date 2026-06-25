@@ -3,6 +3,7 @@ import Layout from '../../components/Layout.astro';
 import PostCard from '../../components/PostCard.astro';
 import { getCollection } from 'astro:content';
 import { stripMarkdown } from '../../utils';
+import { BASE } from '../../consts';
 
 const notes = await getCollection('notes');
 notes.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
@@ -20,7 +21,7 @@ notes.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
             <PostCard
               title={note.data.title}
               date={note.data.date}
-              href={`/notes/${note.id}`}
+              href={`${BASE}/notes/${note.id}`}
               type="note"
               excerpt={stripMarkdown(note.body ?? '')}
             />

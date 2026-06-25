@@ -1,5 +1,6 @@
 export const SITE_TITLE = "My Blog";
 export const SITE_DESCRIPTION = "个人博客 · 日常 · 笔记 · 娱乐";
+export const BASE = "/blog";
 
 export const NAV_ITEMS = [
   { label: "主页", href: "/" },

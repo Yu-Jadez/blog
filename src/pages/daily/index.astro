@@ -3,6 +3,7 @@ import Layout from '../../components/Layout.astro';
 import PostCard from '../../components/PostCard.astro';
 import { getCollection } from 'astro:content';
 import { stripMarkdown } from '../../utils';
+import { BASE } from '../../consts';
 
 const essays = await getCollection('essays');
 essays.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
@@ -20,7 +21,7 @@ essays.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
             <PostCard
               title={essay.data.title}
               date={essay.data.date}
-              href={`/daily/${essay.id}`}
+              href={`${BASE}/daily/${essay.id}`}
               type="essay"
               excerpt={stripMarkdown(essay.body ?? '')}
             />

@@ -1,6 +1,7 @@
 ---
 import { getCollection, render } from 'astro:content';
 import Layout from '../../components/Layout.astro';
+import { BASE } from '../../consts';
 
 export async function getStaticPaths() {
   const essays = await getCollection('essays');
@@ -17,7 +18,7 @@ const { Content } = await render(essay);
 <Layout title={essay.data.title}>
   <article class="max-w-prose mx-auto">
     <header class="mb-8">
-      <a href="/daily" class="text-sm text-primary hover:text-primary-dark mb-4 inline-block">
+      <a href={`${BASE}/daily`} class="text-sm text-primary hover:text-primary-dark mb-4 inline-block">
         ← 返回日常
       </a>
       <h1 class="text-3xl font-bold text-[#1A1A1A] mb-3">
@@ -37,7 +38,7 @@ const { Content } = await render(essay);
     </div>
 
     <footer class="mt-12 pt-6 border-t border-gray-200">
-      <a href="/daily" class="text-primary hover:text-primary-dark">
+      <a href={`${BASE}/daily`} class="text-primary hover:text-primary-dark">
         ← 返回日常
       </a>
     </footer>
