@@ -19,7 +19,7 @@
 @layer components {
   .btn-primary {
     @apply inline-block px-6 py-2.5 bg-primary text-white rounded-lg font-medium
-           hover:bg-primary-dark transition-colors;
+           hover:bg-primary-dark transition-colors dark:text-white;
   }
   .page-title {
     @apply text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2 pb-3 sm:pb-4 border-b-2 border-primary
