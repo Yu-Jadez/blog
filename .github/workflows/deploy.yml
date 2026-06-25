@@ -5,6 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# 自动取消上一次未完成的部署，避免冲突
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pages: write
