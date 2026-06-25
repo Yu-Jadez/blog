@@ -18,15 +18,15 @@ const notes = (await getCollection('notes'))
   <!-- Hero Section -->
   <section class="py-16 sm:py-24 flex items-center justify-between gap-8">
     <div class="flex-1 text-left">
-      <h1 class="text-4xl sm:text-5xl font-bold mb-4 text-[#1A1A1A]">
+      <h1 class="text-4xl sm:text-5xl font-bold mb-4 text-[#1A1A1A] dark:text-white">
         {HERO.greeting}
       </h1>
-      <p class="text-lg text-[#666666] max-w-md">
+      <p class="text-lg text-[#666666] max-w-md dark:text-gray-400">
         {HERO.description}
       </p>
       <div class="mt-8 flex items-center gap-4">
         <a href={`${BASE}/daily`} class="btn-primary">去看随笔</a>
-        <a href={`${BASE}/fun`} class="inline-block px-6 py-2.5 border-2 border-primary text-primary rounded-lg font-medium hover:bg-primary hover:text-white transition-colors">
+        <a href={`${BASE}/fun`} class="inline-block px-6 py-2.5 border-2 border-primary text-primary rounded-lg font-medium hover:bg-primary hover:text-white transition-colors dark:border-red-400 dark:text-red-400 dark:hover:bg-red-500 dark:hover:text-white dark:hover:border-red-500">
           玩个小游戏
         </a>
       </div>
@@ -39,10 +39,10 @@ const notes = (await getCollection('notes'))
   <!-- Recent Essays -->
   <section class="mb-12">
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-bold text-[#1A1A1A]">
+      <h2 class="text-2xl font-bold text-[#1A1A1A] dark:text-white">
         近期随笔
       </h2>
-      <a href={`${BASE}/daily`} class="text-sm text-primary hover:text-primary-dark">查看全部 →</a>
+      <a href={`${BASE}/daily`} class="text-sm text-primary hover:text-primary-dark dark:text-red-400 dark:hover:text-red-300">查看全部 →</a>
     </div>
     {
       essays.length > 0 ? (
@@ -58,7 +58,7 @@ const notes = (await getCollection('notes'))
           ))}
         </div>
       ) : (
-        <p class="text-[#666666] text-sm">暂无随笔，去后台写一篇吧 ✍️</p>
+        <p class="text-[#666666] text-sm dark:text-gray-400">暂无随笔，去后台写一篇吧 ✍️</p>
       )
     }
   </section>
@@ -66,10 +66,10 @@ const notes = (await getCollection('notes'))
   <!-- Recent Notes -->
   <section class="mb-12">
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-bold text-[#1A1A1A]">
+      <h2 class="text-2xl font-bold text-[#1A1A1A] dark:text-white">
         最近笔记
       </h2>
-      <a href={`${BASE}/notes`} class="text-sm text-primary hover:text-primary-dark">查看全部 →</a>
+      <a href={`${BASE}/notes`} class="text-sm text-primary hover:text-primary-dark dark:text-red-400 dark:hover:text-red-300">查看全部 →</a>
     </div>
     {
       notes.length > 0 ? (
@@ -85,7 +85,7 @@ const notes = (await getCollection('notes'))
           ))}
         </div>
       ) : (
-        <p class="text-[#666666] text-sm">暂无笔记，去后台写一篇吧 ✍️</p>
+        <p class="text-[#666666] text-sm dark:text-gray-400">暂无笔记，去后台写一篇吧 ✍️</p>
       )
     }
   </section>

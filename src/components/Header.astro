@@ -3,11 +3,23 @@ import { SITE_TITLE, NAV_ITEMS, BASE } from '../consts';
 const pathname = Astro.url.pathname;
 ---
 
-<header class="fixed top-0 left-0 right-0 z-50 bg-[#6d2222] shadow-md">
+<header class="fixed top-0 left-0 right-0 z-50 bg-[#6d2222] shadow-md dark:bg-[#06142f]">
   <nav class="max-w-content mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-    <a href={BASE + '/'} class="text-white font-bold text-lg tracking-wide hover:text-white/90 transition-colors">
-      {SITE_TITLE}
-    </a>
+    <div class="flex items-center gap-3">
+      <!-- 暗夜模式切换按钮 -->
+      <button
+        id="theme-toggle"
+        class="text-white/80 hover:text-white transition-colors text-lg leading-none cursor-pointer"
+        aria-label="切换暗夜模式"
+        title="切换暗夜/日间模式"
+      >
+        <span class="dark:hidden">🌙</span>
+        <span class="hidden dark:inline">☀️</span>
+      </button>
+      <a href={BASE + '/'} class="text-white font-bold text-lg tracking-wide hover:text-white/90 transition-colors">
+        {SITE_TITLE}
+      </a>
+    </div>
     <ul class="flex items-center gap-1 sm:gap-2">
       {
         NAV_ITEMS.map((item) => {
@@ -34,3 +46,17 @@ const pathname = Astro.url.pathname;
     </ul>
   </nav>
 </header>
+
+<script>
+  const btn = document.getElementById('theme-toggle');
+  btn.addEventListener('click', () => {
+    const html = document.documentElement;
+    if (html.classList.contains('dark')) {
+      html.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    } else {
+      html.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    }
+  });
+</script>
