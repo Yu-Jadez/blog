@@ -4,21 +4,21 @@ const pathname = Astro.url.pathname;
 ---
 
 <header class="fixed top-0 left-0 right-0 z-50 bg-[#6d2222] shadow-md dark:bg-[#06142f]">
-  <nav class="max-w-content mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-    <div class="flex items-center gap-3">
+  <nav class="max-w-content mx-auto px-3 sm:px-6 h-12 sm:h-14 flex items-center justify-between">
+    <div class="flex items-center gap-2 sm:gap-3">
       <!-- 暗夜模式切换按钮 -->
       <button
         id="theme-toggle"
-        class="text-white/70 hover:text-white transition-colors cursor-pointer flex items-center"
+        class="text-white/70 hover:text-white transition-colors cursor-pointer flex items-center flex-shrink-0"
         aria-label="切换暗夜模式"
         title="切换暗夜/日间模式"
       >
         <!-- 日间模式显示：月亮（切换到暗夜） -->
-        <svg class="dark:hidden w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="dark:hidden w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>
         <!-- 暗夜模式显示：太阳（切换到日间） -->
-        <svg class="hidden dark:inline w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="hidden dark:inline w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="5"></circle>
           <line x1="12" y1="1" x2="12" y2="3"></line>
           <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -30,11 +30,11 @@ const pathname = Astro.url.pathname;
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
         </svg>
       </button>
-      <a href={BASE + '/'} class="text-white font-bold text-lg tracking-wide hover:text-white/90 transition-colors">
+      <a href={BASE + '/'} class="text-white font-bold text-sm sm:text-lg tracking-wide hover:text-white/90 transition-colors flex-shrink-0">
         {SITE_TITLE}
       </a>
     </div>
-    <ul class="flex items-center gap-1 sm:gap-2">
+    <ul class="flex items-center gap-0.5 sm:gap-2">
       {
         NAV_ITEMS.map((item) => {
           const fullHref = BASE + item.href;
@@ -45,7 +45,7 @@ const pathname = Astro.url.pathname;
             <li>
               <a
                 href={fullHref}
-                class={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                class={`px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                   isActive
                     ? 'bg-white/20 text-white'
                     : 'text-white/85 hover:bg-white/15 hover:text-white'
