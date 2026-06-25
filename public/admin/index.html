@@ -1,11 +1,499 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>后台管理 · My Blog</title>
-  </head>
-  <body>
-    <script src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>后台管理 · My Blog</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #1a1a1a; }
+
+    /* Login */
+    #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    .login-card { background: #fff; border-radius: 12px; padding: 40px; max-width: 420px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.1); text-align: center; }
+    .login-card h1 { font-size: 24px; margin-bottom: 8px; }
+    .login-card p { color: #666; font-size: 14px; margin-bottom: 24px; }
+    .login-card input { width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; margin-bottom: 16px; font-family: monospace; }
+    .login-card input:focus { outline: none; border-color: #E63946; }
+    .login-card button { width: 100%; padding: 12px; background: #E63946; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .login-card button:hover { background: #B71C1C; }
+    .login-card .hint { font-size: 12px; color: #999; margin-top: 16px; }
+    .login-card .hint a { color: #E63946; }
+
+    /* App */
+    #app-screen { display: none; min-height: 100vh; }
+
+    /* Header */
+    .app-header { background: #E63946; color: #fff; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+    .app-header h1 { font-size: 18px; font-weight: 600; }
+    .app-header a { color: #fff; text-decoration: none; }
+    .header-actions { display: flex; gap: 12px; align-items: center; }
+    .header-actions button { background: rgba(255,255,255,0.2); color: #fff; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .header-actions button:hover { background: rgba(255,255,255,0.3); }
+    .header-actions .site-link { font-size: 13px; opacity: 0.85; }
+    .header-actions .site-link:hover { opacity: 1; }
+
+    /* Layout */
+    .app-body { display: flex; padding-top: 56px; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid #e0e0e0; padding: 20px 0; flex-shrink: 0; }
+    .sidebar-section { padding: 8px 20px; font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px; }
+    .sidebar-item { padding: 10px 20px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 8px; transition: background 0.15s; }
+    .sidebar-item:hover { background: #f5f5f5; }
+    .sidebar-item.active { background: #fde8ea; color: #E63946; font-weight: 600; border-right: 3px solid #E63946; }
+    .sidebar-item .count { margin-left: auto; font-size: 12px; color: #999; background: #eee; padding: 2px 8px; border-radius: 10px; }
+
+    /* Main */
+    .main-area { flex: 1; padding: 24px; overflow-y: auto; max-height: calc(100vh - 56px); }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .toolbar h2 { font-size: 22px; }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-primary { background: #E63946; color: #fff; }
+    .btn-primary:hover { background: #B71C1C; }
+    .btn-outline { background: #fff; color: #E63946; border: 2px solid #E63946; }
+    .btn-outline:hover { background: #E63946; color: #fff; }
+    .btn-danger { background: #fff; color: #e74c3c; border: 1px solid #e74c3c; font-size: 12px; padding: 4px 12px; }
+    .btn-danger:hover { background: #e74c3c; color: #fff; }
+    .btn-sm { font-size: 12px; padding: 4px 12px; }
+
+    /* Post list */
+    .post-list { display: flex; flex-direction: column; gap: 8px; }
+    .post-item { background: #fff; border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); cursor: pointer; transition: box-shadow 0.15s; }
+    .post-item:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+    .post-item .title { flex: 1; font-weight: 500; }
+    .post-item .date { font-size: 13px; color: #999; white-space: nowrap; }
+    .post-item .tags { display: flex; gap: 4px; flex-wrap: wrap; max-width: 200px; }
+    .post-item .tag { font-size: 11px; background: #fde8ea; color: #E63946; padding: 2px 8px; border-radius: 10px; }
+
+    /* Editor */
+    .editor-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200; }
+    .editor-backdrop.open { display: flex; align-items: flex-start; justify-content: center; padding-top: 40px; }
+    .editor-panel { background: #fff; border-radius: 12px; width: 90%; max-width: 900px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,0.2); }
+    .editor-header { padding: 16px 24px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between; }
+    .editor-header h3 { font-size: 16px; }
+    .editor-header .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #999; padding: 4px 8px; }
+    .editor-header .close-btn:hover { color: #333; }
+    .editor-body { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+    .editor-body label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: -12px; }
+    .editor-body input[type="text"],
+    .editor-body input[type="date"],
+    .editor-body textarea { width: 100%; padding: 10px 14px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; }
+    .editor-body input:focus,
+    .editor-body textarea:focus { outline: none; border-color: #E63946; }
+    .editor-body textarea { font-family: 'SF Mono', Monaco, monospace; font-size: 13px; resize: vertical; min-height: 200px; }
+    .editor-body .row { display: flex; gap: 12px; }
+    .editor-body .row > div { flex: 1; }
+    .editor-footer { padding: 16px 24px; border-top: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .preview-box { background: #fafafa; border: 2px solid #e0e0e0; border-radius: 8px; padding: 16px; min-height: 200px; font-size: 14px; line-height: 1.8; }
+    .preview-box h1, .preview-box h2, .preview-box h3 { margin: 8px 0; }
+    .preview-box p { margin: 6px 0; }
+    .preview-box code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    .preview-box pre { background: #1a1a1a; color: #eee; padding: 12px; border-radius: 6px; overflow-x: auto; }
+    .preview-box pre code { background: none; color: inherit; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #333; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; z-index: 999; animation: slideIn 0.3s ease; }
+    .toast.success { background: #27ae60; }
+    .toast.error { background: #e74c3c; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Empty state */
+    .empty { text-align: center; padding: 60px 20px; color: #999; }
+    .empty .icon { font-size: 48px; margin-bottom: 12px; }
+
+    /* Loading */
+    .loading { text-align: center; padding: 40px; color: #999; }
+    .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #e0e0e0; border-top-color: #E63946; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>📝 后台管理</h1>
+    <p>输入 GitHub Token 登录</p>
+    <input type="password" id="token-input" placeholder="ghp_xxxxxxxxxxxx" />
+    <button onclick="login()">登 录</button>
+    <p class="hint">
+      需要创建 Token？<br>
+      <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a><br>
+      勾选 <b>repo</b> 权限即可
+    </p>
+  </div>
+</div>
+
+<!-- App Screen -->
+<div id="app-screen">
+  <header class="app-header">
+    <h1>📝 My Blog Admin</h1>
+    <div class="header-actions">
+      <a class="site-link" href="/blog/" target="_blank">查看网站 ↗</a>
+      <button onclick="logout()">退出</button>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <nav class="sidebar">
+      <div class="sidebar-section">内容管理</div>
+      <div class="sidebar-item active" data-type="essays" onclick="switchType('essays')">
+        📝 日常随笔 <span class="count" id="essay-count">0</span>
+      </div>
+      <div class="sidebar-item" data-type="notes" onclick="switchType('notes')">
+        📖 学习笔记 <span class="count" id="note-count">0</span>
+      </div>
+    </nav>
+
+    <main class="main-area">
+      <div class="toolbar">
+        <h2 id="list-title">日常随笔</h2>
+        <button class="btn btn-primary" onclick="newPost()">+ 新建</button>
+      </div>
+
+      <div id="loading-area" class="loading"><div class="spinner"></div></div>
+      <div id="post-list" class="post-list"></div>
+      <div id="empty-state" class="empty" style="display:none">
+        <div class="icon">📭</div>
+        <p>还没有内容，点击「+ 新建」开始写作</p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Editor Modal -->
+<div class="editor-backdrop" id="editor-backdrop">
+  <div class="editor-panel">
+    <div class="editor-header">
+      <h3 id="editor-title">新建文章</h3>
+      <button class="close-btn" onclick="closeEditor()">✕</button>
+    </div>
+    <div class="editor-body">
+      <label>标题</label>
+      <input type="text" id="post-title" placeholder="文章标题" />
+
+      <div class="row">
+        <div>
+          <label>日期</label>
+          <input type="date" id="post-date" />
+        </div>
+        <div id="tags-row" style="display:none">
+          <label>标签（逗号分隔）</label>
+          <input type="text" id="post-tags" placeholder="写作, 教程" />
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="margin:0">正文（Markdown）</label>
+        <button class="btn btn-sm btn-outline" onclick="togglePreview()" id="preview-toggle">👁 预览</button>
+      </div>
+      <textarea id="post-body" placeholder="开始写 Markdown..."></textarea>
+      <div class="preview-box" id="preview-area" style="display:none"></div>
+    </div>
+    <div class="editor-footer">
+      <div>
+        <button class="btn btn-danger" id="delete-btn" style="display:none" onclick="deletePost()">🗑 删除</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" onclick="closeEditor()">取消</button>
+        <button class="btn btn-primary" onclick="savePost()">💾 保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://api.github.com/repos/Yu-Jadez/blog';
+let token = '';
+let currentType = 'essays';
+let posts = [];
+let editingFile = null; // { path, sha } of file being edited
+
+// ── Auth ──
+function login() {
+  const t = document.getElementById('token-input').value.trim();
+  if (!t) return toast('请输入 Token', 'error');
+  token = t;
+  localStorage.setItem('blog_admin_token', token);
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  loadPosts();
+}
+
+function logout() {
+  token = '';
+  localStorage.removeItem('blog_admin_token');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+}
+
+// ── API helpers ──
+async function api(method, path, body) {
+  const opts = {
+    method,
+    headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(`${API}${path}`, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+function base64(str) { return btoa(unescape(encodeURIComponent(str))); }
+function decode64(str) { return decodeURIComponent(escape(atob(str))); }
+
+// ── Load posts ──
+async function loadPosts() {
+  const list = document.getElementById('post-list');
+  const empty = document.getElementById('empty-state');
+  const loading = document.getElementById('loading-area');
+  list.innerHTML = '';
+  empty.style.display = 'none';
+  loading.style.display = 'block';
+
+  try {
+    const folder = currentType === 'essays' ? 'src/content/essays' : 'src/content/notes';
+    const files = await api('GET', `/contents/${folder}`);
+    posts = files.filter(f => f.name.endsWith('.md'));
+
+    loading.style.display = 'none';
+    updateCounts();
+
+    if (posts.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+
+    for (const post of posts) {
+      const detail = await api('GET', `/contents/${post.path}`);
+      const content = decode64(detail.content);
+      const frontmatter = parseFrontmatter(content);
+
+      const item = document.createElement('div');
+      item.className = 'post-item';
+      item.onclick = () => editPost(post, content);
+
+      let tagsHtml = '';
+      if (frontmatter.tags) {
+        const tags = Array.isArray(frontmatter.tags) ? frontmatter.tags : frontmatter.tags.split(',').map(t => t.trim());
+        tagsHtml = tags.map(t => `<span class="tag">${escHtml(t)}</span>`).join('');
+      }
+
+      item.innerHTML = `
+        <span class="title">${escHtml(frontmatter.title || post.name)}</span>
+        ${tagsHtml ? `<span class="tags">${tagsHtml}</span>` : ''}
+        <span class="date">${frontmatter.date ? formatDate(frontmatter.date) : ''}</span>
+      `;
+      list.appendChild(item);
+    }
+  } catch (e) {
+    loading.style.display = 'none';
+    empty.style.display = 'block';
+    empty.innerHTML = `<div class="icon">❌</div><p>加载失败：${escHtml(e.message)}</p>`;
+  }
+}
+
+function parseFrontmatter(raw) {
+  const match = raw.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return { title: '', date: '' };
+  const fm = {};
+  match[1].split('\n').forEach(line => {
+    const m = line.match(/^(\w+):\s*(.*)/);
+    if (m) {
+      const val = m[2].trim();
+      if (val.startsWith('[') && val.endsWith(']')) {
+        fm[m[1]] = val.slice(1, -1).split(',').map(s => s.trim().replace(/['"]/g, ''));
+      } else {
+        fm[m[1]] = val.replace(/['"]/g, '');
+      }
+    }
+  });
+  return fm;
+}
+
+function getBody(raw) {
+  const match = raw.match(/^---\n[\s\S]*?\n---\n*/);
+  return match ? raw.slice(match[0].length) : raw;
+}
+
+// ── Navigation ──
+function switchType(type) {
+  currentType = type;
+  document.querySelectorAll('.sidebar-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.type === type);
+  });
+  document.getElementById('list-title').textContent = type === 'essays' ? '日常随笔' : '学习笔记';
+  loadPosts();
+}
+
+async function updateCounts() {
+  try {
+    const essays = (await api('GET', '/contents/src/content/essays')).filter(f => f.name.endsWith('.md'));
+    const notes = (await api('GET', '/contents/src/content/notes')).filter(f => f.name.endsWith('.md'));
+    document.getElementById('essay-count').textContent = essays.length;
+    document.getElementById('note-count').textContent = notes.length;
+  } catch(e) { /* ignore */ }
+}
+
+// ── Editor ──
+function newPost() {
+  editingFile = null;
+  document.getElementById('editor-title').textContent = '新建文章';
+  document.getElementById('post-title').value = '';
+  document.getElementById('post-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('post-body').value = '';
+  document.getElementById('post-tags').value = '';
+  document.getElementById('tags-row').style.display = currentType === 'notes' ? 'flex' : 'none';
+  document.getElementById('delete-btn').style.display = 'none';
+  document.getElementById('preview-area').style.display = 'none';
+  document.getElementById('post-body').style.display = 'block';
+  document.getElementById('preview-toggle').textContent = '👁 预览';
+  document.getElementById('editor-backdrop').classList.add('open');
+}
+
+function editPost(post, rawContent) {
+  editingFile = { path: post.path, sha: post.sha };
+  const fm = parseFrontmatter(rawContent);
+  const body = getBody(rawContent);
+
+  document.getElementById('editor-title').textContent = '编辑文章';
+  document.getElementById('post-title').value = fm.title || '';
+  document.getElementById('post-date').value = fm.date ? fm.date.slice(0, 10) : '';
+  document.getElementById('post-body').value = body;
+
+  if (currentType === 'notes') {
+    document.getElementById('tags-row').style.display = 'flex';
+    const tags = Array.isArray(fm.tags) ? fm.tags.join(', ') : (fm.tags || '');
+    document.getElementById('post-tags').value = tags;
+  } else {
+    document.getElementById('tags-row').style.display = 'none';
+  }
+
+  document.getElementById('delete-btn').style.display = 'block';
+  document.getElementById('preview-area').style.display = 'none';
+  document.getElementById('post-body').style.display = 'block';
+  document.getElementById('preview-toggle').textContent = '👁 预览';
+  document.getElementById('editor-backdrop').classList.add('open');
+}
+
+function closeEditor() {
+  document.getElementById('editor-backdrop').classList.remove('open');
+  editingFile = null;
+}
+
+function togglePreview() {
+  const textarea = document.getElementById('post-body');
+  const preview = document.getElementById('preview-area');
+  const toggle = document.getElementById('preview-toggle');
+  if (preview.style.display === 'none') {
+    preview.innerHTML = marked.parse(textarea.value || '*暂无内容*');
+    preview.style.display = 'block';
+    textarea.style.display = 'none';
+    toggle.textContent = '✏️ 编辑';
+  } else {
+    preview.style.display = 'none';
+    textarea.style.display = 'block';
+    toggle.textContent = '👁 预览';
+  }
+}
+
+async function savePost() {
+  const title = document.getElementById('post-title').value.trim();
+  const date = document.getElementById('post-date').value;
+  const body = document.getElementById('post-body').value;
+  const tagsInput = document.getElementById('post-tags').value;
+
+  if (!title) return toast('请输入标题', 'error');
+
+  let tagsArr = [];
+  if (currentType === 'notes' && tagsInput) {
+    tagsArr = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
+  }
+
+  // Build frontmatter
+  let fm = '---\n';
+  fm += `title: "${title}"\n`;
+  fm += `date: ${date}\n`;
+  if (tagsArr.length > 0) {
+    fm += `tags: [${tagsArr.map(t => `"${t}"`).join(', ')}]\n`;
+  }
+  fm += '---\n\n';
+  fm += body;
+
+  try {
+    const folder = currentType === 'essays' ? 'src/content/essays' : 'src/content/notes';
+
+    if (editingFile) {
+      // Update existing
+      await api('PUT', `/contents/${editingFile.path}`, {
+        message: `update: ${title}`,
+        content: base64(fm),
+        sha: editingFile.sha,
+      });
+      toast('✅ 已保存');
+    } else {
+      // Create new
+      const slug = title.toLowerCase().replace(/[^\w一-鿿]+/g, '-').replace(/^-|-$/g, '');
+      const filename = `${date}-${slug}.md`;
+      await api('PUT', `/contents/${folder}/${filename}`, {
+        message: `create: ${title}`,
+        content: base64(fm),
+      });
+      toast('✅ 已创建');
+    }
+
+    closeEditor();
+    loadPosts();
+  } catch (e) {
+    toast('❌ 保存失败：' + e.message, 'error');
+  }
+}
+
+async function deletePost() {
+  if (!editingFile) return;
+  if (!confirm('确定要删除这篇文章吗？此操作不可撤销。')) return;
+
+  try {
+    await api('DELETE', `/contents/${editingFile.path}`, {
+      message: `delete: ${document.getElementById('post-title').value}`,
+      sha: editingFile.sha,
+    });
+    toast('🗑 已删除');
+    closeEditor();
+    loadPosts();
+  } catch (e) {
+    toast('❌ 删除失败：' + e.message, 'error');
+  }
+}
+
+// ── Utils ──
+function formatDate(d) {
+  try { return new Date(d).toLocaleDateString('zh-CN'); } catch { return d; }
+}
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function toast(msg, type) {
+  const t = document.createElement('div');
+  t.className = `toast ${type || ''}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ── Init ──
+const saved = localStorage.getItem('blog_admin_token');
+if (saved) {
+  token = saved;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  loadPosts();
+}
+</script>
+</body>
 </html>
