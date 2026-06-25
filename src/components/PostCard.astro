@@ -10,7 +10,7 @@ export interface Props {
 const { title, date, href, excerpt } = Astro.props;
 ---
 
-<article class="card border-l-4 border-primary-dark group pl-8 rounded-lg dark:bg-[#0a1f47] dark:border-black dark:shadow-[inset_0_2px_8px_rgba(0,0,0,0.4)] dark:py-8">
+<article class="card border-l-4 border-primary-dark group pl-8 rounded-lg dark:bg-[#0a1f47] dark:border-black dark:shadow-[inset_0_2px_8px_rgba(0,0,0,0.4)] dark:py-10 dark:px-8">
   <a href={href} class="block no-underline text-inherit">
     <h3 class="text-lg font-semibold mb-2 group-hover:text-primary transition-colors dark:text-white dark:group-hover:text-red-400">
       {title}
