@@ -1,5 +1,5 @@
-export const SITE_TITLE = "My Blog";
-export const SITE_DESCRIPTION = "个人博客 · 日常 · 笔记 · 娱乐";
+export const SITE_TITLE = "zyu的博客";
+export const SITE_DESCRIPTION = "zyu的个人博客 · 日常 · 笔记 · 娱乐";
 export const BASE = "/blog";
 
 export const NAV_ITEMS = [
@@ -10,6 +10,6 @@ export const NAV_ITEMS = [
 ];
 
 export const HERO = {
-  greeting: "你好，欢迎来到我的博客 👋",
+  greeting: "zyu的博客",
   description: "记录日常随笔、学习笔记，以及一些有趣的小玩意儿。",
 };
