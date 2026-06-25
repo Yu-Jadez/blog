@@ -1,0 +1,35 @@
+---
+import { SITE_TITLE, NAV_ITEMS } from '../consts';
+const pathname = Astro.url.pathname;
+---
+
+<header class="fixed top-0 left-0 right-0 z-50 bg-primary shadow-md">
+  <nav class="max-w-content mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <a href="/" class="text-white font-bold text-lg tracking-wide hover:text-white/90 transition-colors">
+      {SITE_TITLE}
+    </a>
+    <ul class="flex items-center gap-1 sm:gap-2">
+      {
+        NAV_ITEMS.map((item) => {
+          const isActive = item.href === '/'
+            ? pathname === '/'
+            : pathname.startsWith(item.href);
+          return (
+            <li>
+              <a
+                href={item.href}
+                class={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-white/20 text-white'
+                    : 'text-white/85 hover:bg-white/15 hover:text-white'
+                }`}
+              >
+                {item.label}
+              </a>
+            </li>
+          );
+        })
+      }
+    </ul>
+  </nav>
+</header>

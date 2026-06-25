@@ -1,0 +1,177 @@
+<div id="number-bomb" class="max-w-md mx-auto">
+  <!-- Game Info -->
+  <div class="text-center mb-8">
+    <p class="text-5xl mb-4" id="bomb-emoji">💣</p>
+    <h2 class="text-2xl font-bold text-[#1A1A1A] mb-2">数字炸弹</h2>
+    <p class="text-sm text-[#666666]" id="status-text">猜一个 1 ~ 100 之间的数字，别踩到炸弹！</p>
+    <p class="mt-2 text-sm text-[#666666]">
+      已存活：<span id="survived-count" class="text-primary font-bold">0</span> 轮
+    </p>
+  </div>
+
+  <!-- Range Display -->
+  <div class="flex items-center justify-center gap-4 mb-8">
+    <div class="flex-1 text-center">
+      <span class="text-xs text-[#666666] block mb-1">下限</span>
+      <span id="range-min" class="text-3xl font-bold text-primary-dark">1</span>
+    </div>
+    <span class="text-2xl text-gray-300">~</span>
+    <div class="flex-1 text-center">
+      <span class="text-xs text-[#666666] block mb-1">上限</span>
+      <span id="range-max" class="text-3xl font-bold text-primary-dark">100</span>
+    </div>
+  </div>
+
+  <!-- Guess Input -->
+  <div class="flex gap-3 mb-4">
+    <input
+      type="number"
+      id="guess-input"
+      min="1"
+      max="100"
+      class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg text-center text-lg font-semibold
+             focus:border-primary focus:outline-none transition-colors"
+      placeholder="输入数字..."
+    />
+    <button
+      id="guess-btn"
+      class="btn-primary px-8 py-3 text-lg"
+    >
+      猜！
+    </button>
+  </div>
+
+  <!-- Message Area -->
+  <div id="message" class="text-center text-sm font-medium min-h-[1.5rem]"></div>
+
+  <!-- Restart Button (hidden by default) -->
+  <div class="text-center mt-6 hidden" id="restart-area">
+    <button id="restart-btn" class="px-6 py-2.5 border-2 border-primary text-primary rounded-lg font-medium hover:bg-primary hover:text-white transition-colors">
+      再来一局 🔄
+    </button>
+  </div>
+</div>
+
+<script>
+  function initGame() {
+    let secret = Math.floor(Math.random() * 100) + 1;
+    let lo = 1;
+    let hi = 100;
+    let survived = 0;
+    let gameOver = false;
+
+    const bombEmoji = document.getElementById('bomb-emoji');
+    const statusText = document.getElementById('status-text');
+    const survivedCount = document.getElementById('survived-count');
+    const rangeMin = document.getElementById('range-min');
+    const rangeMax = document.getElementById('range-max');
+    const guessInput = document.getElementById('guess-input');
+    const guessBtn = document.getElementById('guess-btn');
+    const message = document.getElementById('message');
+    const restartArea = document.getElementById('restart-area');
+    const restartBtn = document.getElementById('restart-btn');
+
+    function updateRange() {
+      rangeMin.textContent = lo;
+      rangeMax.textContent = hi;
+    }
+
+    function handleGuess() {
+      if (gameOver) return;
+
+      const raw = guessInput.value.trim();
+      if (!raw) {
+        message.innerHTML = '<span class="text-red-500">请输入一个数字！</span>';
+        return;
+      }
+
+      const guess = parseInt(raw, 10);
+      if (isNaN(guess)) {
+        message.innerHTML = '<span class="text-red-500">请输入有效的数字！</span>';
+        return;
+      }
+
+      if (guess < lo || guess > hi) {
+        message.innerHTML = `<span class="text-red-500">请在 ${lo} 到 ${hi} 之间猜！</span>`;
+        return;
+      }
+
+      // Hit the bomb!
+      if (guess === secret) {
+        gameOver = true;
+        bombEmoji.textContent = '💥';
+        statusText.textContent = `你猜了 ${guess}，踩到炸弹了！`;
+        message.innerHTML = '<span class="text-red-500 text-lg font-bold">💣 炸弹爆炸！你出局了！</span>';
+        restartArea.classList.remove('hidden');
+        guessBtn.disabled = true;
+        guessInput.disabled = true;
+        return;
+      }
+
+      // Narrow range
+      if (guess < secret) {
+        lo = Math.max(lo, guess + 1);
+        message.innerHTML = `<span class="text-gray-500">${guess} 太小了，往上猜！</span>`;
+      } else {
+        hi = Math.min(hi, guess - 1);
+        message.innerHTML = `<span class="text-gray-500">${guess} 太大了，往下猜！</span>`;
+      }
+
+      // Check if only one number left (opponent forces win)
+      if (lo === hi && lo === secret) {
+        gameOver = true;
+        bombEmoji.textContent = '💥';
+        statusText.textContent = `只剩 ${secret} 了，无处可逃！`;
+        message.innerHTML = '<span class="text-red-500 text-lg font-bold">💣 炸弹爆炸！你出局了！</span>';
+        restartArea.classList.remove('hidden');
+        guessBtn.disabled = true;
+        guessInput.disabled = true;
+      }
+
+      // Check if range eliminated (safe round)
+      if (!gameOver && lo > hi) {
+        // This shouldn't normally happen with the logic above, but just in case
+        survived++;
+        survivedCount.textContent = survived;
+        message.innerHTML = '<span class="text-green-500">🎉 这轮安全！新的一轮开始</span>';
+        // Start new round
+        secret = Math.floor(Math.random() * 100) + 1;
+        lo = 1;
+        hi = 100;
+        bombEmoji.textContent = '💣';
+        statusText.textContent = `猜一个 ${lo} ~ ${hi} 之间的数字，别踩到炸弹！`;
+      }
+
+      updateRange();
+      guessInput.value = '';
+      guessInput.focus();
+    }
+
+    function restart() {
+      secret = Math.floor(Math.random() * 100) + 1;
+      lo = 1;
+      hi = 100;
+      survived = 0;
+      gameOver = false;
+
+      bombEmoji.textContent = '💣';
+      statusText.textContent = '猜一个 1 ~ 100 之间的数字，别踩到炸弹！';
+      survivedCount.textContent = '0';
+      message.innerHTML = '';
+      restartArea.classList.add('hidden');
+      guessBtn.disabled = false;
+      guessInput.disabled = false;
+      guessInput.value = '';
+      updateRange();
+      guessInput.focus();
+    }
+
+    guessBtn.addEventListener('click', handleGuess);
+    guessInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleGuess();
+    });
+    restartBtn.addEventListener('click', restart);
+  }
+
+  initGame();
+</script>

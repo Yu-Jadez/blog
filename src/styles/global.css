@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+  body {
+    @apply bg-white text-[#1A1A1A] font-sans leading-relaxed;
+  }
+  a {
+    @apply text-primary hover:text-primary-dark transition-colors;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-block px-6 py-2.5 bg-primary text-white rounded-lg font-medium
+           hover:bg-primary-dark transition-colors;
+  }
+  .page-title {
+    @apply text-3xl font-bold text-[#1A1A1A] mb-2 pb-4 border-b-2 border-primary;
+  }
+  .card {
+    @apply bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6;
+  }
+}

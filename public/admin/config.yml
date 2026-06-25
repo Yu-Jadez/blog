@@ -1,0 +1,49 @@
+backend:
+  name: github
+  repo: Yu-Jadez/blog
+  branch: main
+
+media_folder: "public/images"
+public_folder: "/images"
+
+collections:
+  - name: "essays"
+    label: "日常随笔"
+    label_singular: "随笔"
+    folder: "src/content/essays"
+    create: true
+    slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
+    fields:
+      - label: "标题"
+        name: "title"
+        widget: "string"
+      - label: "日期"
+        name: "date"
+        widget: "datetime"
+        format: "YYYY-MM-DD"
+      - label: "正文"
+        name: "body"
+        widget: "markdown"
+
+  - name: "notes"
+    label: "学习笔记"
+    label_singular: "笔记"
+    folder: "src/content/notes"
+    create: true
+    slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
+    fields:
+      - label: "标题"
+        name: "title"
+        widget: "string"
+      - label: "日期"
+        name: "date"
+        widget: "datetime"
+        format: "YYYY-MM-DD"
+      - label: "标签"
+        name: "tags"
+        widget: "list"
+        required: false
+        default: []
+      - label: "正文"
+        name: "body"
+        widget: "markdown"

@@ -1,0 +1,37 @@
+---
+import Layout from '../../components/Layout.astro';
+import PostCard from '../../components/PostCard.astro';
+import { getCollection } from 'astro:content';
+import { stripMarkdown } from '../../utils';
+
+const essays = await getCollection('essays');
+essays.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<Layout title="日常">
+  <section>
+    <h1 class="page-title">📝 日常 · Daily</h1>
+    <p class="text-[#666666] mb-8">这里是我的随笔，记录生活中的点点滴滴。</p>
+
+    {
+      essays.length > 0 ? (
+        <div class="grid gap-4">
+          {essays.map((essay) => (
+            <PostCard
+              title={essay.data.title}
+              date={essay.data.date}
+              href={`/daily/${essay.id}`}
+              type="essay"
+              excerpt={stripMarkdown(essay.body ?? '')}
+            />
+          ))}
+        </div>
+      ) : (
+        <div class="text-center py-16">
+          <p class="text-4xl mb-4">📭</p>
+          <p class="text-[#666666]">还没有随笔，去后台写一篇吧 ✍️</p>
+        </div>
+      )
+    }
+  </section>
+</Layout>
