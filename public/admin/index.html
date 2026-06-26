@@ -347,7 +347,8 @@ function newPost() {
   editingFile = null;
   document.getElementById('editor-title').textContent = '新建文章';
   document.getElementById('post-title').value = '';
-  document.getElementById('post-date').value = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  document.getElementById('post-date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
   document.getElementById('post-body').value = '';
   document.getElementById('post-tags').value = '';
   document.getElementById('tags-row').style.display = currentType === 'notes' ? 'flex' : 'none';
