@@ -12,7 +12,7 @@ const pageTitle = `${title} | ${SITE_TITLE}`;
 ---
 
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="bg-white">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -31,6 +31,12 @@ const pageTitle = `${title} | ${SITE_TITLE}`;
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
     <link rel="icon" type="image/svg+xml" href={BASE + "/favicon.svg"} />
+    <style>
+      /* 日间模式强制白底，覆盖浏览器自动深色 */
+      html { background-color: #fff; }
+      body { background-color: #fff; }
+      html.dark, html.dark body { background-color: #102b5e; }
+    </style>
   </head>
   <body class="min-h-screen flex flex-col bg-white dark:bg-[#102b5e]">
     <Header />
