@@ -5,6 +5,7 @@
 @layer base {
   html {
     @apply scroll-smooth;
+    color-scheme: light dark;
   }
   body {
     @apply bg-white text-[#1A1A1A] font-sans leading-relaxed
