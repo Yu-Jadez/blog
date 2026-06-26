@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 强制背景色：覆盖浏览器自动深色模式 */
+html { background-color: #fff; }
+.dark html, html.dark { background-color: #102b5e; }
+body { background-color: #fff; }
+.dark body { background-color: #102b5e; }
+
 @layer base {
   html {
     @apply scroll-smooth;
