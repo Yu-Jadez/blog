@@ -7,53 +7,53 @@ import { stripMarkdown } from '../../utils';
 
 export async function getStaticPaths() {
   const essays = await getCollection('essays');
-  const slugs = new Set<string>();
-  const categorySet = new Set<string>();
-
-  for (const e of essays) {
+  const nested = essays.filter(e => e.id.includes('/') && !e.id.endsWith('/index'));
+  const pathSet = new Set<string>();
+  for (const e of nested) {
     const parts = e.id.split('/');
-    if (parts.length === 1 && !e.id.endsWith('/index')) {
-      slugs.add(e.id);
-    } else if (parts.length >= 2) {
-      categorySet.add(parts[0]);
-      slugs.add(parts[0]);
+    for (let i = 1; i <= parts.length; i++) {
+      pathSet.add(parts.slice(0, i).join('/'));
     }
   }
-
-  return [...slugs].map((slug) => {
-    const isCategory = categorySet.has(slug);
-    return { params: { slug }, props: { type: isCategory ? 'category' : 'post', slug } };
+  return [...pathSet].map((fullPath) => {
+    return { params: { slug: fullPath.split('/') }, props: { fullPath } };
   });
 }
 
-const { type, slug } = Astro.props as { type: string; slug: string };
+const { fullPath } = Astro.props as { fullPath: string };
 const essays = await getCollection('essays');
+const slugParts = fullPath.split('/');
+const matchingPost = essays.find(e => e.id === fullPath);
+const hasChildren = essays.some(e => e.id.startsWith(fullPath + '/') && e.id !== fullPath + '/index');
+const isPost = matchingPost && !hasChildren;
 
 let pageTitle = '';
 let ContentCmp: any = null;
 let postData: any = null;
+let parentCat = '';
+let backLabel = '日常';
 let catTitle = '';
 let catDesc: string | undefined;
 let catSubs: { name: string; path: string; count: number }[] = [];
 let catPosts: any[] = [];
 let catCrumbs: { label: string; href: string }[] = [];
 
-if (type === 'post') {
-  const essay = essays.find(e => e.id === slug);
-  if (!essay) throw new Error(`Essay not found: ${slug}`);
-  const rendered = await render(essay);
+if (isPost) {
+  const rendered = await render(matchingPost);
   ContentCmp = rendered.Content;
-  postData = essay.data;
-  pageTitle = essay.data.title;
+  postData = matchingPost.data;
+  pageTitle = matchingPost.data.title;
+  parentCat = slugParts.slice(0, -1).join('/');
+  backLabel = parentCat ? slugParts[slugParts.length - 2] : '日常';
 } else {
-  const cat = slug;
-  const indexEssay = essays.find(e => e.id === `${cat}/index`);
-  catTitle = indexEssay?.data.title || cat;
+  const indexEssay = essays.find(e => e.id === `${fullPath}/index`);
+  catTitle = indexEssay?.data.title || slugParts[slugParts.length - 1];
   catDesc = indexEssay?.body ? stripMarkdown(indexEssay.body ?? '', 200) : undefined;
+  pageTitle = catTitle;
 
   const subCats = new Map<string, number>();
   const posts: any[] = [];
-  const prefix = cat + '/';
+  const prefix = fullPath + '/';
   for (const e of essays) {
     if (!e.id.startsWith(prefix)) continue;
     const relative = e.id.slice(prefix.length);
@@ -63,17 +63,19 @@ if (type === 'post') {
   }
   posts.sort((a: any, b: any) => b.data.date.valueOf() - a.data.date.valueOf());
   catPosts = posts;
-  catSubs = [...subCats].map(([name, count]) => ({ name, path: `${cat}/${name}`, count }));
-  catCrumbs = [{ label: '日常', href: `${BASE}/daily` }, { label: catTitle, href: `${BASE}/daily/${cat}/` }];
-  pageTitle = catTitle;
+  catSubs = [...subCats].map(([name, count]) => ({ name, path: `${fullPath}/${name}`, count }));
+  catCrumbs = [{ label: '日常', href: `${BASE}/daily` }];
+  for (let i = 0; i < slugParts.length; i++) {
+    catCrumbs.push({ label: slugParts[i], href: `${BASE}/daily/${slugParts.slice(0, i + 1).join('/')}/` });
+  }
 }
 ---
 
 <Layout title={pageTitle}>
-  {type === 'post' ? (
+  {isPost ? (
     <article class="max-w-prose mx-auto">
       <header class="mb-8">
-        <a href={`${BASE}/daily`} class="text-sm text-primary hover:text-primary-dark mb-4 inline-block dark:text-red-400 dark:hover:text-red-300">← 返回日常</a>
+        <a href={`${BASE}/daily${parentCat ? '/' + parentCat : ''}`} class="text-sm text-primary hover:text-primary-dark mb-4 inline-block dark:text-red-400 dark:hover:text-red-300">← 返回{backLabel}</a>
         <h1 class="text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-3 dark:text-white">{postData.title}</h1>
         <time datetime={postData.date.toISOString()} class="text-sm text-[#666666] dark:text-gray-400">
           {postData.date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}

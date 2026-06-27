@@ -181,10 +181,18 @@
           <label>日期</label>
           <input type="date" id="post-date" />
         </div>
+        <div>
+          <label>分类路径（可选，如"国际关系史"）</label>
+          <input type="text" id="post-category" placeholder="留空则为顶层" />
+        </div>
+      </div>
+      <div class="row">
         <div id="tags-row" style="display:none">
           <label>标签（逗号分隔）</label>
           <input type="text" id="post-tags" placeholder="写作, 教程" />
         </div>
+        <div></div>
+      </div>
       </div>
 
       <div style="display:flex;gap:8px;align-items:center">
@@ -351,7 +359,8 @@ function newPost() {
   document.getElementById('post-date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
   document.getElementById('post-body').value = '';
   document.getElementById('post-tags').value = '';
-  document.getElementById('tags-row').style.display = currentType === 'notes' ? 'flex' : 'none';
+  document.getElementById('post-category').value = '';
+  document.getElementById('tags-row').style.display = currentType === 'notes' ? 'block' : 'none';
   document.getElementById('delete-btn').style.display = 'none';
   document.getElementById('preview-area').style.display = 'none';
   document.getElementById('post-body').style.display = 'block';
@@ -369,8 +378,15 @@ function editPost(post, rawContent) {
   document.getElementById('post-date').value = fm.date ? fm.date.slice(0, 10) : '';
   document.getElementById('post-body').value = body;
 
+  // Extract category from file path
+  const folder = currentType === 'essays' ? 'src/content/essays/' : 'src/content/notes/';
+  let catPath = post.path.replace(folder, '').replace(/\.md$/, '');
+  const catParts = catPath.split('/');
+  catParts.pop(); // remove filename
+  document.getElementById('post-category').value = catParts.join('/');
+
   if (currentType === 'notes') {
-    document.getElementById('tags-row').style.display = 'flex';
+    document.getElementById('tags-row').style.display = 'block';
     const tags = Array.isArray(fm.tags) ? fm.tags.join(', ') : (fm.tags || '');
     document.getElementById('post-tags').value = tags;
   } else {
@@ -429,7 +445,8 @@ async function savePost() {
   fm += body;
 
   try {
-    const folder = currentType === 'essays' ? 'src/content/essays' : 'src/content/notes';
+    const baseFolder = currentType === 'essays' ? 'src/content/essays' : 'src/content/notes';
+    const category = document.getElementById('post-category').value.trim().replace(/^\/+|\/+$/g, '');
 
     if (editingFile) {
       // Update existing
@@ -440,10 +457,11 @@ async function savePost() {
       });
       toast('✅ 已保存');
     } else {
-      // Create new
+      // Create new (in category subdirectory if specified)
       const slug = title.toLowerCase().replace(/[^\w一-鿿]+/g, '-').replace(/^-|-$/g, '');
       const filename = `${date}-${slug}.md`;
-      await api('PUT', `/contents/${folder}/${filename}`, {
+      const filePath = category ? `${baseFolder}/${category}/${filename}` : `${baseFolder}/${filename}`;
+      await api('PUT', `/contents/${filePath}`, {
         message: `create: ${title}`,
         content: base64(fm),
       });

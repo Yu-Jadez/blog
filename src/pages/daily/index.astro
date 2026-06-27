@@ -6,7 +6,17 @@ import { stripMarkdown } from '../../utils';
 import { BASE } from '../../consts';
 
 const essays = await getCollection('essays');
-essays.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const topPosts = essays.filter(e => !e.id.includes('/') && !e.id.endsWith('/index'));
+const catSet = new Map<string, number>();
+for (const e of essays) {
+  const parts = e.id.split('/');
+  if (parts.length >= 2) {
+    catSet.set(parts[0], (catSet.get(parts[0]) || 0) + 1);
+  }
+}
+
+topPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 ---
 
 <Layout title="日常">
@@ -14,25 +24,48 @@ essays.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     <h1 class="text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2 pb-3 sm:pb-4 border-b-2 border-primary dark:text-white dark:border-[#b05223]">日常 · Daily</h1>
     <p class="text-sm sm:text-base text-[#666666] mb-6 sm:mb-8 dark:text-gray-400">这里是我的随笔，记录生活中的点点滴滴。</p>
 
-    {
-      essays.length > 0 ? (
+    {catSet.size > 0 && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold text-[#1A1A1A] mb-3 dark:text-white">📁 分类</h2>
+        <div class="grid gap-3">
+          {[...catSet].map(([name, count]) => (
+            <a
+              href={`${BASE}/daily/${name}/`}
+              class="flex items-center gap-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-4 border border-gray-100 dark:bg-[#0a1f47] dark:border-gray-700 no-underline"
+            >
+              <span class="text-2xl">📁</span>
+              <div class="flex-1">
+                <span class="font-medium text-[#1A1A1A] dark:text-white">{name}</span>
+                <span class="text-xs text-[#666666] dark:text-gray-400 ml-2">{count} 篇</span>
+              </div>
+              <span class="text-gray-300 dark:text-gray-600">→</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {topPosts.length > 0 ? (
+      <div>
+        {catSet.size > 0 && (
+          <h2 class="text-lg font-semibold text-[#1A1A1A] mb-3 dark:text-white">📝 文章</h2>
+        )}
         <div class="grid gap-4">
-          {essays.map((essay) => (
+          {topPosts.map((essay) => (
             <PostCard
               title={essay.data.title}
               date={essay.data.date}
               href={`${BASE}/daily/${essay.id}`}
-              type="essay"
               excerpt={stripMarkdown(essay.body ?? '')}
             />
           ))}
         </div>
-      ) : (
-        <div class="text-center py-16">
-          <p class="text-4xl mb-4">📭</p>
-          <p class="text-sm sm:text-base text-[#666666] dark:text-gray-400">还没有随笔，去后台写一篇吧 ✍️</p>
-        </div>
-      )
-    }
+      </div>
+    ) : catSet.size === 0 && (
+      <div class="text-center py-16">
+        <p class="text-4xl mb-4">📭</p>
+        <p class="text-sm sm:text-base text-[#666666] dark:text-gray-400">还没有随笔，去后台写一篇吧 ✍️</p>
+      </div>
+    )}
   </section>
 </Layout>
