@@ -78,16 +78,27 @@
     .editor-header .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #999; padding: 4px 8px; }
     .editor-header .close-btn:hover { color: #333; }
     .editor-body { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
-    .editor-body label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: -12px; }
+    .editor-body .field-group { margin-bottom: 14px; }
+    .editor-body .field-group label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px; }
+    .editor-body .field-row { display: flex; gap: 14px; }
+    .editor-body .field-row .field-group { flex: 1; }
+    .editor-body .field-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .editor-body .field-label-row label { margin-bottom: 0; }
     .editor-body input[type="text"],
     .editor-body input[type="date"],
-    .editor-body textarea { width: 100%; padding: 10px 14px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; }
+    .editor-body textarea,
+    .editor-body select { width: 100%; padding: 10px 14px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: #fff; }
+    .editor-body select { cursor: pointer; appearance: auto; }
     .editor-body input:focus,
-    .editor-body textarea:focus { outline: none; border-color: #E63946; }
-    .editor-body textarea { font-family: 'SF Mono', Monaco, monospace; font-size: 13px; resize: vertical; min-height: 200px; }
-    .editor-body .row { display: flex; gap: 12px; }
-    .editor-body .row > div { flex: 1; }
-    .editor-footer { padding: 16px 24px; border-top: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .editor-body textarea:focus,
+    .editor-body select:focus { outline: none; border-color: #E63946; }
+    .editor-body textarea { font-family: 'SF Mono', Monaco, monospace; font-size: 13px; resize: vertical; line-height: 1.6; }
+    .editor-footer { padding: 14px 24px; border-top: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .editor-footer .footer-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .editor-footer .footer-right { display: flex; gap: 8px; }
+    #move-section { display: flex; align-items: center; gap: 6px; }
+    #move-section .move-label { font-size: 12px; color: #999; white-space: nowrap; }
+    #move-section select { padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
     .preview-box { background: #fafafa; border: 2px solid #e0e0e0; border-radius: 8px; padding: 16px; min-height: 200px; font-size: 14px; line-height: 1.8; }
     .preview-box h1, .preview-box h2, .preview-box h3 { margin: 8px 0; }
     .preview-box p { margin: 6px 0; }
@@ -173,47 +184,51 @@
       <button class="close-btn" onclick="closeEditor()">✕</button>
     </div>
     <div class="editor-body">
-      <label>标题</label>
-      <input type="text" id="post-title" placeholder="文章标题" />
-
-      <div class="row">
-        <div>
+      <div class="field-group">
+        <label>标题</label>
+        <input type="text" id="post-title" placeholder="文章标题" />
+      </div>
+      <div class="field-row">
+        <div class="field-group">
           <label>日期</label>
           <input type="date" id="post-date" />
         </div>
-        <div>
-          <label>分类路径（可选，如"国际关系史"）</label>
-          <input type="text" id="post-category" placeholder="留空则为顶层" />
+        <div class="field-group">
+          <label>分类</label>
+          <select id="post-category">
+            <option value="">📂 顶层（无分类）</option>
+          </select>
         </div>
       </div>
-      <div class="row">
-        <div id="tags-row" style="display:none">
+      <div class="field-row" id="tags-row" style="display:none">
+        <div class="field-group">
           <label>标签（逗号分隔）</label>
           <input type="text" id="post-tags" placeholder="写作, 教程" />
         </div>
-        <div></div>
       </div>
+      <div class="field-group">
+        <div class="field-label-row">
+          <label>正文（Markdown）</label>
+          <button type="button" class="btn btn-sm btn-outline" onclick="togglePreview()" id="preview-toggle">👁 预览</button>
+        </div>
+        <textarea id="post-body" placeholder="开始写 Markdown..." rows="12"></textarea>
+        <div class="preview-box" id="preview-area" style="display:none"></div>
       </div>
-
-      <div style="display:flex;gap:8px;align-items:center">
-        <label style="margin:0">正文（Markdown）</label>
-        <button class="btn btn-sm btn-outline" onclick="togglePreview()" id="preview-toggle">👁 预览</button>
-      </div>
-      <textarea id="post-body" placeholder="开始写 Markdown..."></textarea>
-      <div class="preview-box" id="preview-area" style="display:none"></div>
     </div>
     <div class="editor-footer">
-      <div>
+      <div class="footer-left">
         <button class="btn btn-danger" id="delete-btn" style="display:none" onclick="deletePost()">🗑 删除</button>
+        <div id="move-section" style="display:none">
+          <label class="move-label">移动到</label>
+          <select id="move-target">
+            <option value="">📂 顶层（无分类）</option>
+          </select>
+          <button class="btn btn-sm btn-outline" onclick="movePost()">📦 移动</button>
+        </div>
       </div>
-      <div id="move-section" style="display:none;align-items:center;gap:6px;">
-        <span class="text-xs text-[#666]">移动到：</span>
-        <input type="text" id="move-target" placeholder="目标分类（留空=顶层）" style="width:180px;padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;" />
-        <button class="btn btn-sm btn-outline" onclick="movePost()" style="font-size:12px;padding:4px 10px;">📦 移动</button>
-      </div>
-      <div style="display:flex;gap:8px">
+      <div class="footer-right">
         <button class="btn btn-outline" onclick="closeEditor()">取消</button>
-        <button class="btn btn-primary" onclick="savePost()">💾 保存</button>
+        <button class="btn btn-primary" onclick="savePost()">💾 保存并发布</button>
       </div>
     </div>
   </div>
@@ -476,6 +491,30 @@ async function updateCounts() {
 }
 
 // ── Editor ──
+function getAllFolders(node, prefix) {
+  let folders = [];
+  for (const name of Object.keys(node.folders || {})) {
+    const path = prefix ? `${prefix}/${name}` : name;
+    folders.push(path);
+    folders = folders.concat(getAllFolders(node.folders[name], path));
+  }
+  return folders;
+}
+
+function populateFolderSelects(currentVal) {
+  const folders = getAllFolders(folderTree, '');
+  const selects = ['post-category', 'move-target'];
+  selects.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">📂 顶层（无分类）</option>';
+    folders.forEach(f => {
+      sel.innerHTML += `<option value="${escHtml(f)}">📁 ${escHtml(f)}</option>`;
+    });
+    if (currentVal !== undefined) sel.value = currentVal;
+  });
+}
+
 function newPost() {
   editingFile = null;
   document.getElementById('editor-title').textContent = '新建文章';
@@ -484,8 +523,8 @@ function newPost() {
   document.getElementById('post-date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
   document.getElementById('post-body').value = '';
   document.getElementById('post-tags').value = '';
-  document.getElementById('post-category').value = currentFolder || '';
-  document.getElementById('tags-row').style.display = currentType === 'notes' ? 'block' : 'none';
+  populateFolderSelects(currentFolder || '');
+  document.getElementById('tags-row').style.display = currentType === 'notes' ? 'flex' : 'none';
   document.getElementById('delete-btn').style.display = 'none';
   document.getElementById('move-section').style.display = 'none';
   document.getElementById('preview-area').style.display = 'none';
@@ -509,22 +548,22 @@ function editPost(post, rawContent) {
   let catPath = post.path.replace(folder, '').replace(/\.md$/, '');
   const catParts = catPath.split('/');
   catParts.pop(); // remove filename
-  document.getElementById('post-category').value = catParts.join('/');
+  const currentCat = catParts.join('/');
+
+  populateFolderSelects(currentCat);
 
   if (currentType === 'notes') {
-    document.getElementById('tags-row').style.display = 'block';
+    document.getElementById('tags-row').style.display = 'flex';
     const tags = Array.isArray(fm.tags) ? fm.tags.join(', ') : (fm.tags || '');
     document.getElementById('post-tags').value = tags;
   } else {
     document.getElementById('tags-row').style.display = 'none';
   }
 
-  document.getElementById('delete-btn').style.display = 'block';
+  document.getElementById('delete-btn').style.display = 'inline-flex';
   document.getElementById('move-section').style.display = 'flex';
-  // Pre-fill move target with current folder
-  const catParts2 = editingFile.path.replace(folder, '').replace(/\.md$/, '').split('/');
-  catParts2.pop();
-  document.getElementById('move-target').value = catParts2.join('/');
+  document.getElementById('post-category').value = currentCat;
+  document.getElementById('move-target').value = currentCat;
   document.getElementById('preview-area').style.display = 'none';
   document.getElementById('post-body').style.display = 'block';
   document.getElementById('preview-toggle').textContent = '👁 预览';
