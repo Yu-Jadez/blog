@@ -164,6 +164,7 @@
       <div class="toolbar">
         <h2 id="list-title">日常随笔</h2>
         <button class="btn btn-primary" onclick="newPost()">+ 新建</button>
+        <button class="btn btn-outline" onclick="newFolder()" style="font-size:13px;">📁 新建文件夹</button>
       </div>
 
       <div id="loading-area" class="loading"><div class="spinner"></div></div>
@@ -513,6 +514,26 @@ function populateFolderSelects(currentVal) {
     });
     if (currentVal !== undefined) sel.value = currentVal;
   });
+}
+
+async function newFolder() {
+  const name = prompt('请输入文件夹名称：');
+  if (!name || !name.trim()) return;
+  const safeName = name.trim().replace(/[\/\\]/g, '-');
+  const baseFolder = currentType === 'essays' ? 'src/content/essays' : 'src/content/notes';
+  const folderPath = currentFolder ? `${currentFolder}/${safeName}` : safeName;
+  const indexContent = `---\ntitle: "${name.trim()}"\ndate: ${new Date().toISOString().slice(0, 10)}\n---\n\n${name.trim()} 分类。\n`;
+
+  try {
+    await api('PUT', `/contents/${baseFolder}/${folderPath}/index.md`, {
+      message: `create folder: ${safeName}`,
+      content: base64(indexContent),
+    });
+    toast('📁 文件夹已创建');
+    loadPosts();
+  } catch (e) {
+    toast('❌ 创建失败：' + e.message, 'error');
+  }
 }
 
 function newPost() {
