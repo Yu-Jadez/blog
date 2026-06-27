@@ -206,6 +206,11 @@
       <div>
         <button class="btn btn-danger" id="delete-btn" style="display:none" onclick="deletePost()">🗑 删除</button>
       </div>
+      <div id="move-section" style="display:none;align-items:center;gap:6px;">
+        <span class="text-xs text-[#666]">移动到：</span>
+        <input type="text" id="move-target" placeholder="目标分类（留空=顶层）" style="width:180px;padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;" />
+        <button class="btn btn-sm btn-outline" onclick="movePost()" style="font-size:12px;padding:4px 10px;">📦 移动</button>
+      </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-outline" onclick="closeEditor()">取消</button>
         <button class="btn btn-primary" onclick="savePost()">💾 保存</button>
@@ -482,6 +487,7 @@ function newPost() {
   document.getElementById('post-category').value = currentFolder || '';
   document.getElementById('tags-row').style.display = currentType === 'notes' ? 'block' : 'none';
   document.getElementById('delete-btn').style.display = 'none';
+  document.getElementById('move-section').style.display = 'none';
   document.getElementById('preview-area').style.display = 'none';
   document.getElementById('post-body').style.display = 'block';
   document.getElementById('preview-toggle').textContent = '👁 预览';
@@ -514,6 +520,11 @@ function editPost(post, rawContent) {
   }
 
   document.getElementById('delete-btn').style.display = 'block';
+  document.getElementById('move-section').style.display = 'flex';
+  // Pre-fill move target with current folder
+  const catParts2 = editingFile.path.replace(folder, '').replace(/\.md$/, '').split('/');
+  catParts2.pop();
+  document.getElementById('move-target').value = catParts2.join('/');
   document.getElementById('preview-area').style.display = 'none';
   document.getElementById('post-body').style.display = 'block';
   document.getElementById('preview-toggle').textContent = '👁 预览';
@@ -609,6 +620,39 @@ async function deletePost() {
     loadPosts();
   } catch (e) {
     toast('❌ 删除失败：' + e.message, 'error');
+  }
+}
+
+async function movePost() {
+  if (!editingFile) return;
+  const target = document.getElementById('move-target').value.trim().replace(/^\/+|\/+$/g, '');
+  const baseFolder = currentType === 'essays' ? 'src/content/essays' : 'src/content/notes';
+  const oldPath = editingFile.path;
+  const filename = oldPath.split('/').pop();
+  const newPath = target ? `${baseFolder}/${target}/${filename}` : `${baseFolder}/${filename}`;
+
+  if (oldPath === newPath) { toast('目标路径与当前位置相同', 'error'); return; }
+
+  if (!confirm(`确定将文章移动到「${target || '顶层'}」？`)) return;
+
+  try {
+    // Get current content
+    const detail = await api('GET', `/contents/${oldPath}`);
+    // Create at new location
+    await api('PUT', `/contents/${newPath}`, {
+      message: `move: ${document.getElementById('post-title').value} → ${target || '顶层'}`,
+      content: detail.content,
+    });
+    // Delete old
+    await api('DELETE', `/contents/${oldPath}`, {
+      message: `move: remove from old location`,
+      sha: editingFile.sha,
+    });
+    toast('📦 已移动');
+    closeEditor();
+    loadPosts();
+  } catch (e) {
+    toast('❌ 移动失败：' + e.message, 'error');
   }
 }
 
