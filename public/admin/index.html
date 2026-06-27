@@ -218,7 +218,7 @@
 const API = 'https://api.github.com/repos/Yu-Jadez/blog';
 let token = '';
 let currentType = 'essays';
-let posts = [];
+let currentFolder = '';
 let editingFile = null; // { path, sha } of file being edited
 
 // ── Auth ──
@@ -257,8 +257,19 @@ async function api(method, path, body) {
 function base64(str) { return btoa(unescape(encodeURIComponent(str))); }
 function decode64(str) { return decodeURIComponent(escape(atob(str))); }
 
+// ── Tree state ──
+let folderTree = {}; // { '': { files: [], folders: {} }, '国际关系史': { files: [], folders: {} } }
+let expandedFolders = {};
+
 // ── Load posts ──
-async function loadPosts() {
+async function loadPosts(folderPath) {
+  // If folderPath is provided, navigate into that folder
+  if (folderPath !== undefined) {
+    currentFolder = folderPath || '';
+    if (folderPath && !expandedFolders[folderPath]) {
+      expandedFolders[folderPath] = true;
+    }
+  }
   const list = document.getElementById('post-list');
   const empty = document.getElementById('empty-state');
   const loading = document.getElementById('loading-area');
@@ -267,46 +278,154 @@ async function loadPosts() {
   loading.style.display = 'block';
 
   try {
-    const folder = currentType === 'essays' ? 'src/content/essays' : 'src/content/notes';
-    const files = await api('GET', `/contents/${folder}`);
-    posts = files.filter(f => f.name.endsWith('.md'));
+    const baseFolder = currentType === 'essays' ? 'src/content/essays' : 'src/content/notes';
+    // Get full recursive tree
+    const tree = await api('GET', `/git/trees/main?recursive=1`);
+    const allPaths = tree.tree
+      .filter(t => t.type === 'blob' && t.path.startsWith(baseFolder + '/') && t.path.endsWith('.md'))
+      .map(t => ({ path: t.path, sha: t.sha }));
+
+    // Build folder tree relative to baseFolder
+    const root = { files: [], folders: {} };
+    for (const f of allPaths) {
+      const rel = f.path.replace(baseFolder + '/', '');
+      const parts = rel.split('/');
+      let node = root;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!node.folders[parts[i]]) node.folders[parts[i]] = { files: [], folders: {} };
+        node = node.folders[parts[i]];
+      }
+      node.files.push(f);
+    }
+    folderTree = root;
 
     loading.style.display = 'none';
-    updateCounts();
+    await updateCountsRecursive(root);
 
-    if (posts.length === 0) {
+    if (Object.keys(root.folders).length === 0 && root.files.length === 0) {
       empty.style.display = 'block';
       return;
     }
 
-    for (const post of posts) {
-      const detail = await api('GET', `/contents/${post.path}`);
-      const content = decode64(detail.content);
-      const frontmatter = parseFrontmatter(content);
-
-      const item = document.createElement('div');
-      item.className = 'post-item';
-      item.onclick = () => editPost(post, content);
-
-      let tagsHtml = '';
-      if (frontmatter.tags) {
-        const tags = Array.isArray(frontmatter.tags) ? frontmatter.tags : frontmatter.tags.split(',').map(t => t.trim());
-        tagsHtml = tags.map(t => `<span class="tag">${escHtml(t)}</span>`).join('');
-      }
-
-      item.innerHTML = `
-        <span class="title">${escHtml(frontmatter.title || post.name)}</span>
-        ${tagsHtml ? `<span class="tags">${tagsHtml}</span>` : ''}
-        <span class="date">${frontmatter.date ? formatDate(frontmatter.date) : ''}</span>
-      `;
-      list.appendChild(item);
-    }
+    renderTree(currentFolder || '', root);
   } catch (e) {
     loading.style.display = 'none';
     empty.style.display = 'block';
     empty.innerHTML = `<div class="icon">❌</div><p>加载失败：${escHtml(e.message)}</p>`;
   }
 }
+
+function renderTree(cwd, node) {
+  const list = document.getElementById('post-list');
+  const empty = document.getElementById('empty-state');
+  list.innerHTML = '';
+
+  // Breadcrumb
+  if (cwd) {
+    const bc = document.createElement('div');
+    bc.className = 'flex items-center gap-2 text-sm text-[#666666] mb-4';
+    bc.innerHTML = `<span class="cursor-pointer hover:text-primary" onclick="navigateTo('')">📂 ${currentType === 'essays' ? 'essays' : 'notes'}</span>`;
+    const parts = cwd.split('/');
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts.slice(0, i + 1).join('/');
+      bc.innerHTML += `<span class="text-gray-300">/</span><span class="cursor-pointer hover:text-primary" onclick="navigateTo('${p}')">${escHtml(parts[i])}</span>`;
+    }
+    list.appendChild(bc);
+  }
+
+  // Folders
+  const folderNames = Object.keys(node.folders).sort();
+  for (const name of folderNames) {
+    const sub = node.folders[name];
+    const fullPath = cwd ? `${cwd}/${name}` : name;
+    const item = document.createElement('div');
+    item.className = 'post-item flex-col';
+    item.style.cssText = 'background:#fdf6f0;border-left:4px solid #e67e22;cursor:pointer;';
+    item.onclick = () => navigateTo(fullPath);
+
+    // Count total posts in folder recursively
+    let totalPosts = countFiles(sub);
+    item.innerHTML = `
+      <div class="flex items-center gap-2 w-full">
+        <span class="text-xl">📁</span>
+        <span class="font-semibold text-[#1A1A1A]">${escHtml(name)}</span>
+        <span class="text-xs text-[#666666] ml-auto">${totalPosts} 篇</span>
+        <span class="text-gray-300">→</span>
+      </div>
+    `;
+    list.appendChild(item);
+  }
+
+  // Files in current folder
+  const files = [...(node.files || [])];
+  // Fetch file details for display
+  Promise.all(files.map(async (f) => {
+    try {
+      const detail = await api('GET', `/contents/${f.path}`);
+      const content = decode64(detail.content);
+      return { file: f, detail, content, fm: parseFrontmatter(content) };
+    } catch(e) { return null; }
+  })).then(results => {
+    const valid = results.filter(r => r !== null);
+    valid.sort((a, b) => {
+      const da = a.fm.date || '0', db = b.fm.date || '0';
+      return db.localeCompare(da);
+    });
+    if (files.length === 0 && folderNames.length === 0 && !cwd) {
+      empty.style.display = 'block';
+    }
+    for (const r of valid) {
+      const item = document.createElement('div');
+      item.className = 'post-item';
+      item.onclick = () => editPost(r.detail, r.content);
+      let tagsHtml = '';
+      if (r.fm.tags) {
+        const tags = Array.isArray(r.fm.tags) ? r.fm.tags : r.fm.tags.split(',').map(t => t.trim());
+        tagsHtml = tags.map(t => `<span class="tag">${escHtml(t)}</span>`).join('');
+      }
+      item.innerHTML = `
+        <span class="title">${escHtml(r.fm.title || r.file.path.split('/').pop())}</span>
+        ${tagsHtml ? `<span class="tags">${tagsHtml}</span>` : ''}
+        <span class="date">${r.fm.date ? formatDate(r.fm.date) : ''}</span>
+      `;
+      list.appendChild(item);
+    }
+  });
+}
+
+function navigateTo(folderPath) {
+  currentFolder = folderPath || '';
+  let node = folderTree;
+  if (folderPath) {
+    for (const part of folderPath.split('/')) {
+      if (node.folders[part]) node = node.folders[part];
+      else { node = { files: [], folders: {} }; break; }
+    }
+  }
+  renderTree(folderPath, node);
+}
+
+function countFiles(node) {
+  let count = node.files ? node.files.length : 0;
+  for (const sub of Object.values(node.folders || {})) {
+    count += countFiles(sub);
+  }
+  return count;
+}
+
+async function updateCountsRecursive(node) {
+  document.getElementById('essay-count').textContent = '?';
+  document.getElementById('note-count').textContent = '?';
+  try {
+    const tree = await api('GET', '/git/trees/main?recursive=1');
+    const essayCount = tree.tree.filter(t => t.type === 'blob' && t.path.startsWith('src/content/essays/') && t.path.endsWith('.md') && !t.path.endsWith('/index.md')).length;
+    const noteCount = tree.tree.filter(t => t.type === 'blob' && t.path.startsWith('src/content/notes/') && t.path.endsWith('.md') && !t.path.endsWith('/index.md')).length;
+    document.getElementById('essay-count').textContent = essayCount;
+    document.getElementById('note-count').textContent = noteCount;
+  } catch(e) {}
+}
+
+async function updateCounts() { await updateCountsRecursive(folderTree); }
 
 function parseFrontmatter(raw) {
   const match = raw.match(/^---\n([\s\S]*?)\n---/);
@@ -334,6 +453,7 @@ function getBody(raw) {
 // ── Navigation ──
 function switchType(type) {
   currentType = type;
+  currentFolder = '';
   document.querySelectorAll('.sidebar-item').forEach(el => {
     el.classList.toggle('active', el.dataset.type === type);
   });
@@ -359,7 +479,7 @@ function newPost() {
   document.getElementById('post-date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
   document.getElementById('post-body').value = '';
   document.getElementById('post-tags').value = '';
-  document.getElementById('post-category').value = '';
+  document.getElementById('post-category').value = currentFolder || '';
   document.getElementById('tags-row').style.display = currentType === 'notes' ? 'block' : 'none';
   document.getElementById('delete-btn').style.display = 'none';
   document.getElementById('preview-area').style.display = 'none';
