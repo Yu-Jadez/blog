@@ -49,6 +49,7 @@
     .main-area { flex: 1; padding: 24px; overflow-y: auto; max-height: calc(100vh - 56px); }
     .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
     .toolbar h2 { font-size: 22px; }
+    .toolbar-actions { display: flex; align-items: center; gap: 8px; }
 
     /* Buttons */
     .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
@@ -163,8 +164,10 @@
     <main class="main-area">
       <div class="toolbar">
         <h2 id="list-title">日常随笔</h2>
-        <button class="btn btn-primary" onclick="newPost()">+ 新建</button>
-        <button class="btn btn-outline" onclick="newFolder()" style="font-size:13px;">📁 新建文件夹</button>
+        <div class="toolbar-actions">
+          <button class="btn btn-primary" onclick="newPost()">+ 新建</button>
+          <button class="btn btn-outline" onclick="newFolder()">📁 新建文件夹</button>
+        </div>
       </div>
 
       <div id="loading-area" class="loading"><div class="spinner"></div></div>
