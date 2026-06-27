@@ -11,12 +11,13 @@ export async function getStaticPaths() {
   const pathSet = new Set<string>();
   for (const e of nested) {
     const parts = e.id.split('/');
-    for (let i = 1; i <= parts.length; i++) {
+    // 只生成多级路径（2段以上），单级由 [slug].astro 处理
+    for (let i = 2; i <= parts.length; i++) {
       pathSet.add(parts.slice(0, i).join('/'));
     }
   }
   return [...pathSet].map((fullPath) => {
-    return { params: { slug: fullPath.split('/') }, props: { fullPath } };
+    return { params: { slug: fullPath }, props: { fullPath } };
   });
 }
 

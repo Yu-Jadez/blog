@@ -11,12 +11,12 @@ export async function getStaticPaths() {
   const pathSet = new Set<string>();
   for (const n of nested) {
     const parts = n.id.split('/');
-    for (let i = 1; i <= parts.length; i++) {
+    for (let i = 2; i <= parts.length; i++) {
       pathSet.add(parts.slice(0, i).join('/'));
     }
   }
   return [...pathSet].map((fullPath) => {
-    return { params: { slug: fullPath.split('/') }, props: { fullPath } };
+    return { params: { slug: fullPath }, props: { fullPath } };
   });
 }
 
