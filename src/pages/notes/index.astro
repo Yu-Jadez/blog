@@ -133,7 +133,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
 
   /* ── Expanded folder: button slides right ── */
   .tree-row.is-expanded .tree-item {
-    transform: translateX(-48px);
+    transform: translateX(-40px);
   }
 
   /* ── Branch overlay base (hidden by default, no display:none!) ── */
@@ -264,8 +264,8 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       const isExp = !!expandedPaths[folderPath];
       const same = lastFolder === folderPath;
 
-      // 展开时父按钮左移48px，子按钮也要相应左移
-      const expandShift = isExp ? 48 : 0;
+      // 展开时父按钮左移，子按钮也要相应左移
+      const expandShift = isExp ? 40 : 0;
       const startX = rect.right + 12 - expandShift;
       const startY = rect.top + rect.height / 2;
       const kids = folderNode.children;
@@ -274,9 +274,10 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       const totalH = spacing * (count - 1);
       const baseY = startY - totalH / 2;
 
-      // Tree-branch diagram (used for both hover & expanded, just distances differ)
-      const trunkEndX = startX + (isExp ? 10 : 8);
-      const branchEndX = startX + (isExp ? 16 : 36);
+      // Unified tree-branch diagram — same structure, distances differ
+      const trunkEndX = startX + (isExp ? 14 : 6);
+      const branchEndX = startX + (isExp ? 40 : 28);
+      const bezierMidX = trunkEndX + (isExp ? 20 : 10);
 
       if (!same) {
         // First time: create elements
@@ -293,9 +294,8 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
 
         kids.forEach((child: any, i: number) => {
           const endY = baseY + i * spacing;
-          const cx1 = trunkEndX + (isExp ? 8 : 8);
-          const cx2 = trunkEndX + (isExp ? 14 : 20);
-          const d = `M${trunkEndX},${startY} C${cx1},${startY} ${cx2},${endY} ${branchEndX},${endY}`;
+          const cx = bezierMidX;
+          const d = `M${trunkEndX},${startY} Q${cx},${startY} ${cx},${endY} ${branchEndX},${endY}`;
           const bp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           bp.setAttribute('d', d);
           bp.classList.add('branch-path');
@@ -313,9 +313,8 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
         // Update branches
         kids.forEach((child: any, i: number) => {
           const endY = baseY + i * spacing;
-          const cx1 = trunkEndX + (isExp ? 8 : 8);
-          const cx2 = trunkEndX + (isExp ? 14 : 20);
-          const d = `M${trunkEndX},${startY} C${cx1},${startY} ${cx2},${endY} ${branchEndX},${endY}`;
+          const cx = bezierMidX;
+          const d = `M${trunkEndX},${startY} Q${cx},${startY} ${cx},${endY} ${branchEndX},${endY}`;
           const bp = paths[i + 1];
           if (bp) bp.setAttribute('d', d);
           // Update sub button position
