@@ -273,8 +273,8 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       const baseY = startY - totalH / 2;
 
       // Tree-branch diagram (used for both hover & expanded, just distances differ)
-      const trunkEndX = startX + (isExp ? 18 : 8);
-      const branchEndX = startX + (isExp ? 80 : 36);
+      const trunkEndX = startX + (isExp ? 14 : 8);
+      const branchEndX = startX + (isExp ? 48 : 36);
 
       if (!same) {
         // First time: create elements
@@ -291,8 +291,8 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
 
         kids.forEach((child: any, i: number) => {
           const endY = baseY + i * spacing;
-          const cx1 = trunkEndX + (isExp ? 22 : 8);
-          const cx2 = trunkEndX + (isExp ? 52 : 20);
+          const cx1 = trunkEndX + (isExp ? 16 : 8);
+          const cx2 = trunkEndX + (isExp ? 34 : 20);
           const d = `M${trunkEndX},${startY} C${cx1},${startY} ${cx2},${endY} ${branchEndX},${endY}`;
           const bp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           bp.setAttribute('d', d);
@@ -311,8 +311,8 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
         // Update branches
         kids.forEach((child: any, i: number) => {
           const endY = baseY + i * spacing;
-          const cx1 = trunkEndX + (isExp ? 22 : 8);
-          const cx2 = trunkEndX + (isExp ? 52 : 20);
+          const cx1 = trunkEndX + (isExp ? 16 : 8);
+          const cx2 = trunkEndX + (isExp ? 34 : 20);
           const d = `M${trunkEndX},${startY} C${cx1},${startY} ${cx2},${endY} ${branchEndX},${endY}`;
           const bp = paths[i + 1];
           if (bp) bp.setAttribute('d', d);
