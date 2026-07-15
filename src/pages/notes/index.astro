@@ -302,6 +302,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     // ── Folder interaction ──
     function hoverFolder(path: string) {
       if (expandedPaths[path]) return;
+      if (activePath === path) return; // 已在悬停中，跳过重绘
       const node = findNode(path);
       if (!node?.children?.length) return;
       activePath = path;
@@ -333,6 +334,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
 
     // ── Document interaction ──
     function hoverDoc(path: string) {
+      if (activePath === path) return; // 已在悬停中，跳过重绘
       const node = findNode(path);
       if (!node) return;
       activePath = path;
