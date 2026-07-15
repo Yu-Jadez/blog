@@ -419,8 +419,11 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       }, 200);
     }
 
+    function isMobile() { return window.innerWidth < 768; }
+
     // ── Event: mouseenter on tree items ──
     treeEl.addEventListener('mouseover', (e) => {
+      if (isMobile()) return;
       const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
       if (!target) return;
       if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
@@ -460,7 +463,11 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       const type = target.dataset.type!;
       if (type === 'folder') {
         e.preventDefault();
-        toggleFolder(path);
+        if (isMobile()) {
+          window.location.href = `${BASE}/notes/${path}/`;
+        } else {
+          toggleFolder(path);
+        }
       } else {
         window.location.href = `${BASE}/notes/${path}/`;
       }
