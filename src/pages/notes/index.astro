@@ -181,7 +181,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
 </style>
 
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
+  function initNotes() {
     const treeData = JSON.parse('{treeJSON}') as any[];
     const BASE = '{baseURL}';
 
@@ -408,5 +408,6 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
         resetAll();
       }
     });
-  });
+  }
+  initNotes();
 </script>
