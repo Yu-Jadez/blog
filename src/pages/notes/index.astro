@@ -1,275 +1,430 @@
 ---
 import Layout from '../../components/Layout.astro';
 import { getCollection } from 'astro:content';
-import { stripMarkdown } from '../../utils';
 import { BASE } from '../../consts';
 
-const notes = await getCollection('notes');
-const topPosts = notes.filter(n => !n.id.includes('/') && !n.id.endsWith('/index'));
-const catMap = new Map<string, any[]>();
-for (const n of notes) {
-  const parts = n.id.split('/');
-  if (parts.length >= 2 && !n.id.endsWith('/index')) {
-    const cat = parts[0];
-    if (!catMap.has(cat)) catMap.set(cat, []);
-    catMap.get(cat)!.push(n);
-  }
+const allNotes = await getCollection('notes');
+
+// Build tree from flat notes list
+interface TreeNode {
+  name: string;
+  type: 'folder' | 'doc';
+  path: string;
+  children?: TreeNode[];
+  count?: number;
+  title?: string;
+  date?: Date;
+  excerpt?: string;
+  tags?: string[];
 }
-topPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
----
 
-<Layout title="笔记">
-  <section class="notes-main" style="max-width:900px;margin:0 auto;">
-    <!-- Header -->
-    <h1 class="notes-title">笔记 · Notes</h1>
-    <p class="notes-sub">这里记录我的学习笔记，温故而知新。</p>
+function buildTree(notes: any[], prefix: string = ''): TreeNode[] {
+  const folders = new Map<string, TreeNode>();
+  const docs: TreeNode[] = [];
 
-    <!-- List -->
-    <div id="n-list" class="n-list">
-      {[...catMap].map(([name, posts]) => (
-        <div class="n-row" data-kind="folder" data-id={name}>
-          <button class="n-btn n-btn-folder"
-            data-name={name}
-            data-children={JSON.stringify(posts.map(p => ({ id: p.id, title: p.data.title })))}>
-            <span class="n-ico">📁</span>
-            <span class="n-label">{name}</span>
-            <span class="n-badge">{posts.length}</span>
-          </button>
-          <div class="n-branch" data-for={name}></div>
-        </div>
-      ))}
-      {topPosts.map(p => (
-        <div class="n-row" data-kind="doc" data-id={p.id}>
-          <button class="n-btn n-btn-doc"
-            data-id={p.id}
-            data-title={p.data.title}
-            data-date={p.data.date.toISOString()}
-            data-excerpt={stripMarkdown(p.body ?? '', 150)}>
-            <span class="n-ico">📄</span>
-            <span class="n-label">{p.data.title}</span>
-          </button>
-          <div class="n-preview" data-for={p.id}></div>
-        </div>
-      ))}
-    </div>
-  </section>
-</Layout>
+  for (const note of notes) {
+    if (note.id.endsWith('/index')) continue;
+    const parts = note.id.split('/');
+    const relative = prefix ? note.id.slice(prefix.length + 1) : note.id;
 
-<style>
-  /* ── Base ── */
-  .notes-title {
-    font-size: 1.75rem; font-weight: 700; color: #1a1a1a;
-    padding-bottom: 0.6rem; margin-bottom: 0.4rem;
-    border-bottom: 2px solid #E63946;
-  }
-  .notes-sub {
-    font-size: 0.9rem; color: #888; margin-bottom: 2.5rem;
-  }
-  .n-list {
-    display: flex; flex-direction: column; gap: 10px;
-    position: relative;
-  }
-  .n-row {
-    display: flex; align-items: center; position: relative;
-    min-height: 44px;
-  }
-  /* ── Buttons ── */
-  .n-btn {
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 10px 22px; border-radius: 24px;
-    border: 1.5px solid #e0e0e0; background: #fff;
-    font-size: 0.9rem; font-weight: 500; color: #333;
-    cursor: pointer; font-family: inherit; white-space: nowrap;
-    transition: background 0.35s ease-out, border-color 0.35s ease-out, box-shadow 0.35s ease-out, opacity 0.3s ease-out;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-    position: relative; z-index: 2; flex-shrink: 0;
-    transform: none;
-  }
-  .n-btn:hover { border-color: #bbb; box-shadow: 0 2px 10px rgba(0,0,0,0.06); transform: none; }
-  .n-btn.focused {
-    border-color: #E63946; background: #E63946; color: #fff;
-    box-shadow: 0 6px 22px rgba(230,57,70,0.28);
-    transform: none;
-  }
-  .n-btn.focused .n-badge { background: rgba(255,255,255,0.28); color: #fff; }
-  .n-btn.dimmed {
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.3s ease-out;
-  }
-  .n-ico { font-size: 1.1rem; }
-  .n-label { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
-  .n-badge {
-    font-size: 0.7rem; background: #fde8ea; color: #E63946;
-    padding: 1px 7px; border-radius: 10px; font-weight: 600;
-  }
-  /* ── Branch container ── */
-  .n-branch {
-    display: flex; flex-direction: column; gap: 4px;
-    margin-left: 32px; padding-left: 18px;
-    border-left: 1.5px solid #ddd;
-    max-width: 0; overflow: hidden; opacity: 0;
-    transition: all 0.4s ease-out;
-    white-space: nowrap;
-  }
-  .n-branch.open {
-    max-width: 500px; opacity: 1;
-  }
-  .n-branch .n-sub-btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 14px; border-radius: 16px;
-    border: 1.2px solid #e8e8e8; background: #fafafa;
-    font-size: 0.8rem; color: #444; cursor: pointer;
-    font-family: inherit; white-space: nowrap; text-decoration: none;
-    transition: all 0.2s;
-  }
-  .n-branch .n-sub-btn:hover { border-color: #E63946; background: #fff5f5; }
-  /* ── Preview card ── */
-  .n-preview {
-    margin-left: 24px;
-    max-width: 0; overflow: hidden; opacity: 0;
-    transition: all 0.35s ease-out;
-    white-space: normal;
-  }
-  .n-preview.open {
-    max-width: 380px; opacity: 1;
-  }
-  .n-preview-card {
-    background: #fff; border-radius: 12px; padding: 18px 22px;
-    border: 1px solid #eee; box-shadow: 0 3px 16px rgba(0,0,0,0.07);
-    min-width: 260px;
-  }
-  .n-preview-card .pc-title { font-size: 0.95rem; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
-  .n-preview-card .pc-date { font-size: 0.75rem; color: #aaa; margin-bottom: 8px; }
-  .n-preview-card .pc-excerpt { font-size: 0.82rem; color: #666; line-height: 1.65; }
-  .n-preview-card .pc-link {
-    display: inline-block; margin-top: 10px; color: #E63946;
-    font-size: 0.82rem; font-weight: 600; text-decoration: none;
-  }
-  .n-preview-card .pc-link:hover { text-decoration: underline; }
-
-  /* Dark */
-  .dark .notes-title { color: #fff; }
-  .dark .notes-sub { color: #999; }
-  .dark .n-btn { background: #0a1f47; border-color: #2a4a6a; color: #ddd; }
-  .dark .n-btn:hover { border-color: #b05223; }
-  .dark .n-btn.focused { background: #b05223; border-color: #b05223; color: #fff; }
-  .dark .n-badge { background: rgba(176,82,35,0.22); color: #c97a4a; }
-  .dark .n-branch { border-left-color: #2a4a6a; }
-  .dark .n-branch .n-sub-btn { background: #061a35; border-color: #2a4a6a; color: #ccc; }
-  .dark .n-branch .n-sub-btn:hover { border-color: #b05223; background: #0d1f35; }
-  .dark .n-preview-card { background: #0a1f47; border-color: #2a4a6a; }
-  .dark .n-preview-card .pc-title { color: #fff; }
-  .dark .n-preview-card .pc-excerpt { color: #bbb; }
-  .dark .n-preview-card .pc-link { color: #c97a4a; }
-</style>
-
-<script>
-  const B = '/blog';
-  let pinned = null;   // id of clicked folder
-  let hoverId = null;  // id of currently hovered item
-  let timer = null;
-
-  function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-
-  function allRows() { return document.querySelectorAll('#n-list .n-row'); }
-  function allBtns() { return document.querySelectorAll('#n-list .n-btn'); }
-
-  function clearState() {
-    allBtns().forEach(b => { b.classList.remove('focused', 'dimmed'); });
-    document.querySelectorAll('.n-branch').forEach(b => { b.classList.remove('open'); b.innerHTML = ''; });
-    document.querySelectorAll('.n-preview').forEach(p => { p.classList.remove('open'); p.innerHTML = ''; });
-  }
-
-  function restorePinned() {
-    if (!pinned) return;
-    const row = document.querySelector(`.n-row[data-id="${CSS.escape(pinned)}"]`) as HTMLElement;
-    if (!row) { pinned = null; return; }
-    const btn = row.querySelector('.n-btn') as HTMLElement;
-    activateItem(row, btn, true);
-  }
-
-  function activateItem(row, btn, isPinned) {
-    clearState();
-    allBtns().forEach(b => { if (b !== btn) b.classList.add('dimmed'); });
-    btn.classList.add('focused');
-
-    if (row.dataset.kind === 'folder') {
-      const branch = row.querySelector('.n-branch') as HTMLElement;
-      branch.classList.add('open');
-      branch.innerHTML = '';
-      try {
-        const children = JSON.parse(btn.dataset.children || '[]');
-        children.forEach((c) => {
-          const el = document.createElement('a');
-          el.className = 'n-sub-btn';
-          el.href = `${B}/notes/${c.id}`;
-          el.innerHTML = `📄 ${esc(c.title)}`;
-          branch.appendChild(el);
+    if (parts.length === 1 || (prefix && parts.length === prefix.split('/').length + 1)) {
+      // This is a leaf in the current scope
+      if (relative.includes('/')) {
+        // Has sub-items → folder
+        const folderName = relative.split('/')[0];
+        if (!folders.has(folderName)) {
+          folders.set(folderName, {
+            name: folderName,
+            type: 'folder',
+            path: prefix ? `${prefix}/${folderName}` : folderName,
+            children: [],
+            count: 0,
+          });
+        }
+      } else {
+        // Direct file → document
+        docs.push({
+          name: note.data.title || relative.replace(/\.md$/, ''),
+          type: 'doc',
+          path: note.id,
+          title: note.data.title,
+          date: note.data.date,
+          excerpt: note.body?.slice(0, 150),
+          tags: note.data.tags,
         });
-      } catch(e) {}
-      if (isPinned) {
-        const hint = document.createElement('div');
-        hint.style.cssText = 'font-size:0.7rem;color:#bbb;margin-top:4px;';
-        hint.textContent = '已展开 · 点击文件夹收起';
-        branch.appendChild(hint);
       }
-    } else {
-      const preview = row.querySelector('.n-preview') as HTMLElement;
-      preview.classList.add('open');
-      const t = btn.dataset.title || '', d = btn.dataset.date || '', e = btn.dataset.excerpt || '';
-      preview.innerHTML = `<div class="n-preview-card">
-        <div class="pc-title">${esc(t)}</div>
-        <div class="pc-date">${new Date(d).toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric'})}</div>
-        <div class="pc-excerpt">${esc(e)}</div>
-        <a href="${B}/notes/${btn.dataset.id}" class="pc-link">阅读全文 →</a>
-      </div>`;
     }
   }
 
-  // ── Events ──
-  allRows().forEach(row => {
-    const btn = row.querySelector('.n-btn') as HTMLElement;
+  // Count children for folders
+  for (const [name, folder] of folders) {
+    const subNotes = notes.filter(n =>
+      n.id.startsWith(folder.path + '/') && !n.id.endsWith('/index')
+    );
+    folder.count = subNotes.length;
+    folder.children = buildTree(notes, folder.path);
+  }
 
-    btn.addEventListener('mouseenter', () => {
-      clearTimeout(timer);
-      hoverId = row.dataset.id!;
-      activateItem(row, btn, false);
-    });
+  docs.sort((a, b) => (b.date?.valueOf() || 0) - (a.date?.valueOf() || 0));
+  const folderList = [...folders.values()];
 
-    btn.addEventListener('mouseleave', () => {
-      hoverId = null;
-      timer = setTimeout(() => {
-        if (!pinned) clearState();
-        else if (hoverId === null) restorePinned();
-      }, 200);
-    });
+  return [...folderList, ...docs];
+}
 
-    // Keep state when hovering branch/preview
-    const branch = row.querySelector('.n-branch') as HTMLElement;
-    const preview = row.querySelector('.n-preview') as HTMLElement;
-    [branch, preview].forEach(el => {
-      if (!el) return;
-      el.addEventListener('mouseenter', () => { clearTimeout(timer); });
-      el.addEventListener('mouseleave', () => {
-        hoverId = null;
-        timer = setTimeout(() => {
-          if (!pinned) clearState();
-          else restorePinned();
-        }, 200);
+const tree = buildTree(allNotes);
+
+// Serialize for client JS
+const treeJSON = JSON.stringify(tree).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+const baseURL = BASE;
+---
+
+<Layout title="笔记">
+  <div id="notes-root">
+    <!-- Title -->
+    <h1 class="text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2 pb-3 sm:pb-4 border-b-2 border-primary dark:text-white dark:border-[#b05223]">
+      笔记 · Notes
+    </h1>
+    <p class="text-sm sm:text-base text-[#666666] mb-10 dark:text-gray-400">
+      这里记录我的学习笔记，温故而知新。
+    </p>
+
+    <!-- Tree Container -->
+    <div id="notes-tree" class="relative">
+      {tree.map((item) => (
+        <div
+          class="tree-row"
+          data-path={item.path}
+          data-type={item.type}
+          data-children={item.type === 'folder' ? item.children?.map(c => c.path).join(',') || '' : ''}
+        >
+          <button
+            class="tree-item group flex items-center gap-3 w-full text-left px-5 py-3 rounded-xl border border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm transition-all duration-300 dark:bg-[#0a1f47] dark:border-gray-700 dark:hover:border-gray-500"
+            data-path={item.path}
+            data-type={item.type}
+          >
+            <span class="flex-shrink-0 text-xl">
+              {item.type === 'folder' ? '📁' : '📄'}
+            </span>
+            <span class="flex-1 text-sm sm:text-base font-medium text-[#1A1A1A] dark:text-white truncate">
+              {item.type === 'folder' ? item.name : (item.title || item.name)}
+            </span>
+            {item.type === 'folder' && item.count !== undefined && item.count > 0 && (
+              <span class="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-primary rounded-full dark:bg-red-500">
+                {item.count}
+              </span>
+            )}
+            {item.type === 'doc' && item.date && (
+              <span class="flex-shrink-0 text-xs text-[#999] dark:text-gray-500">
+                {new Date(item.date).toLocaleDateString('zh-CN')}
+              </span>
+            )}
+          </button>
+        </div>
+      ))}
+    </div>
+
+    <!-- SVG overlay for branch lines -->
+    <svg id="branch-svg" class="fixed inset-0 pointer-events-none z-40" style="display:none;"></svg>
+
+    <!-- Preview card (for documents) -->
+    <div id="preview-card" class="fixed z-50 bg-white rounded-xl shadow-lg border border-gray-200 p-5 max-w-xs opacity-0 pointer-events-none transition-opacity duration-300 dark:bg-[#0a1f47] dark:border-gray-600" style="display:none;">
+      <h3 class="text-base font-bold text-[#1A1A1A] mb-2 dark:text-white" id="preview-title"></h3>
+      <p class="text-xs text-[#666666] leading-relaxed line-clamp-4 dark:text-gray-400" id="preview-excerpt"></p>
+      <div class="mt-2 text-xs text-primary dark:text-red-400">点击阅读 →</div>
+    </div>
+
+    <!-- Branch sub-items container -->
+    <div id="branch-items" class="fixed inset-0 pointer-events-none z-40" style="display:none;"></div>
+  </div>
+
+  <style is:global>
+    .tree-item { transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1); }
+    .tree-row { transition: opacity 0.3s ease-out; position: relative; margin-bottom: 8px; }
+    .branch-btn {
+      transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+      opacity: 0;
+      transform: translateX(-10px);
+      pointer-events: none;
+    }
+    .branch-btn.show {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+    #branch-svg line, #branch-svg path {
+      stroke: #cbd5e1;
+      stroke-width: 1.5;
+      fill: none;
+      transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+    }
+    .dark #branch-svg line, .dark #branch-svg path { stroke: #475569; }
+  </style>
+
+  <script>
+    const treeData = JSON.parse('{treeJSON}');
+    const BASE = '{baseURL}';
+
+    let hoverTimeout: any = null;
+    let activeFolder: string | null = null;
+    let activeDoc: string | null = null;
+    let isExpanded: Record<string, boolean> = {};
+
+    const treeEl = document.getElementById('notes-tree')!;
+    const svgEl = document.getElementById('branch-svg') as unknown as SVGElement;
+    const previewCard = document.getElementById('preview-card')!;
+    const branchItems = document.getElementById('branch-items')!;
+
+    // Find item in tree recursively
+    function findItem(path: string, nodes = treeData): any {
+      for (const n of nodes) {
+        if (n.path === path) return n;
+        if (n.children) {
+          const found = findItem(path, n.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    function getRow(path: string) {
+      return treeEl.querySelector(`[data-path="${CSS.escape(path)}"]`) as HTMLElement;
+    }
+
+    function getButton(path: string) {
+      return treeEl.querySelector(`button[data-path="${CSS.escape(path)}"]`) as HTMLElement;
+    }
+
+    function getAllRows() {
+      return treeEl.querySelectorAll('.tree-row') as NodeListOf<HTMLElement>;
+    }
+
+    // ── Folder: Draw branch lines ──
+    function drawBranches(folderPath: string, folderItem: any) {
+      const folderRow = getRow(folderPath);
+      if (!folderRow || !folderItem?.children?.length) return;
+
+      const folderBtn = folderRow.querySelector('button')!;
+      const btnRect = folderBtn.getBoundingClientRect();
+      const expanded = isExpanded[folderPath];
+
+      // Clear previous
+      svgEl.innerHTML = '';
+      branchItems.innerHTML = '';
+
+      const startX = btnRect.right + 12;
+      const startY = btnRect.top + btnRect.height / 2;
+      const childCount = folderItem.children.length;
+      const spacing = Math.max(56, Math.min(80, 400 / childCount));
+      const totalH = spacing * (childCount - 1);
+      const baseY = startY - totalH / 2;
+
+      svgEl.style.display = 'block';
+      branchItems.style.display = 'block';
+
+      folderItem.children.forEach((child: any, i: number) => {
+        const endY = baseY + i * spacing;
+        const midX = startX + (expanded ? 80 : 40);
+
+        // Draw Bezier curve
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const d = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${startX + (expanded ? 180 : 80)} ${endY}`;
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', '#cbd5e1');
+        path.setAttribute('stroke-width', '1.5');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-linecap', 'round');
+        svgEl.appendChild(path);
+
+        // Create sub-item button
+        const btn = document.createElement('button');
+        btn.className = `branch-btn fixed flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-[#1A1A1A] shadow-sm hover:border-gray-300 hover:shadow-md z-50 dark:bg-[#0a1f47] dark:border-gray-600 dark:text-white`;
+        btn.style.left = `${startX + (expanded ? 180 : 80)}px`;
+        btn.style.top = `${endY - 20}px`;
+        btn.innerHTML = `<span class="text-base">${child.type === 'folder' ? '📁' : '📄'}</span>
+          <span class="truncate max-w-[160px]">${child.type === 'folder' ? child.name : (child.title || child.name)}</span>
+          ${child.type === 'folder' && child.count ? `<span class="flex-shrink-0 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-primary rounded-full">${child.count}</span>` : ''}`;
+
+        if (child.type === 'folder') {
+          btn.addEventListener('click', (e) => { e.stopPropagation(); toggleFolder(child.path); });
+          btn.addEventListener('mouseenter', (e) => { clearTimeout(hoverTimeout); hoverFolder(child.path); });
+          btn.addEventListener('mouseleave', () => { hoverTimeout = setTimeout(clearAll, 200); });
+        } else {
+          btn.addEventListener('click', (e) => { e.stopPropagation(); goToDoc(child.path); });
+          btn.addEventListener('mouseenter', (e) => { clearTimeout(hoverTimeout); hoverDoc(child.path, e); });
+          btn.addEventListener('mouseleave', () => { hoverTimeout = setTimeout(clearAll, 200); });
+        }
+
+        branchItems.appendChild(btn);
+        // Trigger show
+        requestAnimationFrame(() => btn.classList.add('show'));
       });
-    });
+    }
 
-    // Click on folder = toggle pin
-    btn.addEventListener('click', (e) => {
-      if (row.dataset.kind !== 'folder') return; // docs navigate normally
-      e.preventDefault();
-      if (pinned === row.dataset.id) {
-        pinned = null;
-        clearState();
+    // ── Folder: Hover ──
+    function hoverFolder(path: string) {
+      if (isExpanded[path]) return;
+      const item = findItem(path);
+      if (!item || !item.children?.length) return;
+
+      activeFolder = path;
+      activeDoc = null;
+      hidePreview();
+
+      // Fade others
+      getAllRows().forEach(r => {
+        if (r.dataset.path !== path) r.style.opacity = '0.08';
+        else r.style.opacity = '1';
+      });
+
+      drawBranches(path, item);
+    }
+
+    // ── Folder: Toggle expand ──
+    function toggleFolder(path: string) {
+      const folderBtn = getButton(path);
+      const folderRow = getRow(path);
+      if (!folderBtn || !folderRow) return;
+
+      isExpanded[path] = !isExpanded[path];
+      const expanded = isExpanded[path];
+      const item = findItem(path);
+
+      if (expanded) {
+        activeFolder = path;
+        getAllRows().forEach(r => {
+          if (r.dataset.path !== path) r.style.opacity = '0.05';
+        });
+        folderBtn.style.transform = 'translateX(40px)';
+        drawBranches(path, item);
       } else {
-        pinned = row.dataset.id!;
-        activateItem(row, btn, true);
+        clearAll();
+      }
+    }
+
+    // ── Document: Hover ──
+    function hoverDoc(path: string, e?: MouseEvent) {
+      const item = findItem(path);
+      if (!item) return;
+
+      activeDoc = path;
+      activeFolder = null;
+      clearBranches();
+
+      const btn = getButton(path);
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+
+      getAllRows().forEach(r => {
+        if (r.dataset.path !== path) r.style.opacity = '0.08';
+        else r.style.opacity = '1';
+      });
+
+      // Build excerpt from body or use existing
+      let excerpt = '';
+      if (item.excerpt) {
+        excerpt = item.excerpt;
+      } else {
+        // Try to extract from raw body
+        const raw = item._body || '';
+        excerpt = raw.replace(/[#*`\[\]()>!-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+      }
+
+      previewCard.style.display = 'block';
+      previewCard.style.left = `${rect.right + 16}px`;
+      previewCard.style.top = `${rect.top - 10}px`;
+      document.getElementById('preview-title')!.textContent = item.title || item.name;
+      document.getElementById('preview-excerpt')!.textContent = excerpt || '暂无摘要';
+      requestAnimationFrame(() => { previewCard.style.opacity = '1'; });
+    }
+
+    function hidePreview() {
+      previewCard.style.opacity = '0';
+      previewCard.style.display = 'none';
+    }
+
+    function clearBranches() {
+      svgEl.innerHTML = '';
+      svgEl.style.display = 'none';
+      branchItems.innerHTML = '';
+      branchItems.style.display = 'none';
+    }
+
+    function clearAll() {
+      activeFolder = null;
+      activeDoc = null;
+      hidePreview();
+      clearBranches();
+
+      getAllRows().forEach(r => { r.style.opacity = '1'; });
+
+      // Reset folder buttons
+      Object.keys(isExpanded).forEach(p => {
+        if (isExpanded[p]) {
+          isExpanded[p] = false;
+          const btn = getButton(p);
+          if (btn) btn.style.transform = 'translateX(0)';
+        }
+      });
+    }
+
+    function goToDoc(path: string) {
+      window.location.href = `${BASE}/notes/${path}/`;
+    }
+
+    // ── Bind events ──
+    treeEl.addEventListener('mouseenter', (e: Event) => {
+      const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
+      if (!target) return;
+      const path = target.dataset.path!;
+      const type = target.dataset.type!;
+      clearTimeout(hoverTimeout);
+
+      if (type === 'folder' && !isExpanded[path]) {
+        hoverFolder(path);
+      } else if (type === 'doc') {
+        hoverDoc(path, e as MouseEvent);
+      }
+    }, true);
+
+    treeEl.addEventListener('mouseleave', (e: Event) => {
+      const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
+      if (!target) return;
+      hoverTimeout = setTimeout(() => {
+        if (!activeFolder || !isExpanded[activeFolder]) {
+          clearAll();
+        }
+      }, 300);
+    }, true);
+
+    // Click on folder buttons
+    treeEl.addEventListener('click', (e: Event) => {
+      const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
+      if (!target) return;
+      const path = target.dataset.path!;
+      const type = target.dataset.type!;
+
+      if (type === 'folder') {
+        e.preventDefault();
+        toggleFolder(path);
+      } else if (type === 'doc') {
+        goToDoc(path);
       }
     });
-  });
-</script>
+
+    // Click outside to clear
+    document.addEventListener('click', (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('#notes-tree') && !target.closest('#branch-items') && !target.closest('#preview-card')) {
+        clearAll();
+      }
+    });
+
+    // Hover on branch sub-items
+    branchItems.addEventListener('mouseenter', () => clearTimeout(hoverTimeout));
+    branchItems.addEventListener('mouseleave', () => {
+      hoverTimeout = setTimeout(() => {
+        if (!activeFolder || !isExpanded[activeFolder]) clearAll();
+      }, 500);
+    });
+  </script>
+</Layout>
