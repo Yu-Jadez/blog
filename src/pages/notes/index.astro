@@ -384,6 +384,11 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     treeEl.addEventListener('mouseout', (e) => {
       const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
       if (!target) return;
+      // 鼠标移向分支/预览区域时不启动定时器
+      const related = e.relatedTarget as HTMLElement;
+      if (related && (related.closest('#branch-items') || related.closest('#branch-svg') || related.closest('#preview-card'))) {
+        return;
+      }
       hoverTimer = setTimeout(() => {
         if (!activePath || !expandedPaths[activePath]) resetAll();
       }, 600);
