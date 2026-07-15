@@ -121,13 +121,14 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     transition: transform 0.4s cubic-bezier(0.25,0.1,0.25,1), border-color 0.3s, box-shadow 0.3s;
   }
   .tree-row {
-    transition: opacity 0.3s ease-out;
+    transition: opacity 0.4s ease-out;
   }
 
-  /* ── Dimmed state (other items fully hidden) ── */
+  /* ── Dimmed state: smooth fade out ── */
   .tree-row.dimmed {
     opacity: 0;
-    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.4s ease-out;
   }
 
   /* ── Expanded folder: button slides right ── */
