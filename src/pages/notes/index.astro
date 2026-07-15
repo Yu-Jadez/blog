@@ -228,7 +228,6 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     // ── State reset ──
     function resetAll() {
       activePath = null;
-      lastFolder = null;
       // Remove all dimmed states
       allRows().forEach(r => r.classList.remove('dimmed'));
       // Collapse all expanded folders
@@ -262,7 +261,8 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       if (!btn || !folderNode?.children?.length) return;
       const rect = btn.getBoundingClientRect();
       const isExp = !!expandedPaths[folderPath];
-      const same = lastFolder === folderPath;
+      const existingPaths = svgEl.querySelectorAll('.branch-path');
+      const same = lastFolder === folderPath && existingPaths.length > 0;
 
       // 展开时父按钮左移，子按钮也要相应左移
       const expandShift = isExp ? 40 : 0;
