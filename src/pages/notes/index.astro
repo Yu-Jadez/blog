@@ -1,74 +1,313 @@
 ---
 import Layout from '../../components/Layout.astro';
-import PostCard from '../../components/PostCard.astro';
 import { getCollection } from 'astro:content';
 import { stripMarkdown } from '../../utils';
 import { BASE } from '../../consts';
 
 const notes = await getCollection('notes');
 
-// Separate top-level posts and categories
 const topPosts = notes.filter(n => !n.id.includes('/') && !n.id.endsWith('/index'));
-const catSet = new Map<string, number>();
+const catMap = new Map<string, { count: number; posts: any[] }>();
 for (const n of notes) {
   const parts = n.id.split('/');
-  if (parts.length >= 2) {
-    catSet.set(parts[0], (catSet.get(parts[0]) || 0) + 1);
+  if (parts.length >= 2 && !n.id.endsWith('/index')) {
+    const cat = parts[0];
+    if (!catMap.has(cat)) catMap.set(cat, { count: 0, posts: [] });
+    const entry = catMap.get(cat)!;
+    entry.count++;
+    entry.posts.push(n);
   }
 }
 
 topPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+// Build items array: folders first, then articles
+const items: { type: 'folder' | 'post'; id: string; data?: any }[] = [];
+for (const [name, info] of catMap) {
+  items.push({ type: 'folder', id: name, data: { count: info.count, posts: info.posts } });
+}
+for (const p of topPosts) {
+  items.push({ type: 'post', id: p.id, data: p });
+}
 ---
 
 <Layout title="笔记">
-  <section>
+  <section class="interactive-notes">
     <h1 class="text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2 pb-3 sm:pb-4 border-b-2 border-primary dark:text-white dark:border-[#b05223]">笔记 · Notes</h1>
     <p class="text-sm sm:text-base text-[#666666] mb-6 sm:mb-8 dark:text-gray-400">这里记录我的学习笔记，温故而知新。</p>
 
-    <!-- 分类文件夹 -->
-    {catSet.size > 0 && (
-      <div class="mb-8">
-        <h2 class="text-lg font-semibold text-[#1A1A1A] mb-3 dark:text-white">📁 分类</h2>
-        <div class="grid gap-3">
-          {[...catSet].map(([name, count]) => (
-            <a
-              href={`${BASE}/notes/${name}/`}
-              class="flex items-center gap-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-4 border border-gray-100 dark:bg-[#0a1f47] dark:border-gray-700 no-underline"
+    <div id="notes-stage" class="notes-stage">
+      <!-- Item buttons -->
+      <div id="notes-grid" class="notes-grid">
+        {items.map((item, i) => {
+          const label = item.type === 'folder' ? item.id : (item.data?.data?.title || item.id);
+          const icon = item.type === 'folder' ? '📁' : '📄';
+          const count = item.type === 'folder' ? item.data.count : null;
+          return (
+            <button
+              class="note-btn group"
+              data-index={i}
+              data-type={item.type}
+              data-id={item.id}
             >
-              <span class="text-2xl">📁</span>
-              <div class="flex-1">
-                <span class="font-medium text-[#1A1A1A] dark:text-white">{name}</span>
-                <span class="text-xs text-[#666666] dark:text-gray-400 ml-2">{count} 篇</span>
-              </div>
-              <span class="text-gray-300 dark:text-gray-600">→</span>
-            </a>
-          ))}
-        </div>
+              <span class="note-btn-icon">{icon}</span>
+              <span class="note-btn-label">{label}</span>
+              {count !== null && <span class="note-btn-count">{count}</span>}
+            </button>
+          );
+        })}
       </div>
-    )}
 
-    <!-- 顶层文章 -->
-    {topPosts.length > 0 ? (
-      <div>
-        {catSet.size > 0 && (
-          <h2 class="text-lg font-semibold text-[#1A1A1A] mb-3 dark:text-white">📝 文章</h2>
-        )}
-        <div class="grid gap-4">
-          {topPosts.map((note) => (
-            <PostCard
-              title={note.data.title}
-              date={note.data.date}
-              href={`${BASE}/notes/${note.id}`}
-              excerpt={stripMarkdown(note.body ?? '')}
-            />
-          ))}
-        </div>
+      <!-- Preview / Branch panel -->
+      <div id="notes-preview" class="notes-preview hidden">
+        <div id="preview-content"></div>
       </div>
-    ) : catSet.size === 0 && (
-      <div class="text-center py-16">
-        <p class="text-4xl mb-4">📭</p>
-        <p class="text-sm sm:text-base text-[#666666] dark:text-gray-400">还没有笔记，去后台写一篇吧 ✍️</p>
-      </div>
-    )}
+
+      <!-- Branch tree for folders -->
+      <div id="branch-tree" class="branch-tree hidden"></div>
+    </div>
   </section>
 </Layout>
+
+<style>
+  .notes-stage { position: relative; min-height: 400px; }
+  .notes-grid {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .notes-grid.shifted {
+    transform: translateX(-20px);
+  }
+
+  .note-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: 24px;
+    border: 2px solid #e0e0e0; background: #fff;
+    font-size: 15px; font-weight: 500; color: #1A1A1A;
+    cursor: pointer; transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap; position: relative;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .note-btn:hover {
+    border-color: #E63946; box-shadow: 0 4px 16px rgba(230,57,70,0.15);
+    transform: translateY(-2px);
+  }
+  .note-btn.focused {
+    border-color: #E63946; background: #E63946; color: #fff;
+    transform: translateX(-10px);
+    box-shadow: 0 8px 24px rgba(230,57,70,0.25);
+  }
+  .note-btn.focused .note-btn-count {
+    background: rgba(255,255,255,0.3); color: #fff;
+  }
+  .note-btn.dimmed {
+    opacity: 0; pointer-events: none; transform: translateX(20px);
+  }
+  .note-btn-icon { font-size: 18px; }
+  .note-btn-label { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+  .note-btn-count {
+    font-size: 11px; background: #fde8ea; color: #E63946;
+    padding: 2px 8px; border-radius: 10px;
+  }
+
+  /* Dark mode */
+  .dark .note-btn { background: #0a1f47; border-color: #2a4a6a; color: #ddd; }
+  .dark .note-btn:hover { border-color: #b05223; box-shadow: 0 4px 16px rgba(176,82,35,0.2); }
+  .dark .note-btn.focused { background: #b05223; border-color: #b05223; color: #fff; }
+  .dark .note-btn-count { background: rgba(176,82,35,0.2); color: #c97a4a; }
+
+  /* Preview panel */
+  .notes-preview {
+    position: absolute; right: 0; top: 0; width: 380px; max-width: 45%;
+    background: #fff; border-radius: 16px; padding: 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    border: 1px solid #eee;
+    animation: slideIn 0.3s ease;
+    max-height: 70vh; overflow-y: auto; z-index: 10;
+  }
+  .dark .notes-preview { background: #0a1f47; border-color: #2a4a6a; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(40px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .preview-header { margin-bottom: 16px; }
+  .preview-header h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; color: #1A1A1A; }
+  .dark .preview-header h3 { color: #fff; }
+  .preview-header .preview-date { font-size: 12px; color: #999; }
+  .preview-excerpt { font-size: 14px; color: #555; line-height: 1.7; }
+  .dark .preview-excerpt { color: #bbb; }
+  .preview-link {
+    display: inline-block; margin-top: 16px; padding: 8px 20px;
+    background: #E63946; color: #fff; border-radius: 8px;
+    font-size: 13px; font-weight: 600; text-decoration: none;
+    transition: background 0.2s;
+  }
+  .preview-link:hover { background: #B71C1C; }
+
+  /* Branch tree */
+  .branch-tree {
+    position: absolute; right: 0; top: 0; width: 380px; max-width: 45%;
+    background: #fff; border-radius: 16px; padding: 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    border: 1px solid #eee;
+    animation: slideIn 0.3s ease;
+    max-height: 70vh; overflow-y: auto; z-index: 10;
+  }
+  .dark .branch-tree { background: #0a1f47; border-color: #2a4a6a; }
+
+  .branch-title {
+    font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #1A1A1A;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dark .branch-title { color: #fff; }
+  .branch-title .pin-indicator { font-size: 11px; background: #27ae60; color: #fff; padding: 2px 8px; border-radius: 8px; }
+
+  .branch-item {
+    display: block; padding: 8px 12px; margin: 2px 0;
+    border-radius: 8px; font-size: 14px; color: #1A1A1A;
+    text-decoration: none; transition: background 0.15s;
+  }
+  .branch-item:hover { background: #f5f5f5; }
+  .dark .branch-item { color: #ddd; }
+  .dark .branch-item:hover { background: #1a3050; }
+
+  .branch-item.is-folder {
+    font-weight: 600; padding-left: 8px;
+    border-left: 3px solid #E63946;
+  }
+  .dark .branch-item.is-folder { border-left-color: #b05223; }
+  .branch-item.is-post { padding-left: 24px; font-size: 13px; color: #666; }
+  .dark .branch-item.is-post { color: #aaa; }
+
+  .branch-connector {
+    width: 2px; height: 12px; background: #ddd;
+    margin-left: 12px;
+  }
+  .dark .branch-connector { background: #444; }
+
+  @media (max-width: 768px) {
+    .notes-preview, .branch-tree { position: relative; width: 100%; max-width: 100%; margin-top: 16px; }
+    .notes-grid.shifted { transform: none; }
+    .note-btn.focused { transform: translateX(0); }
+  }
+</style>
+
+<script type="application/json" id="preview-data">
+  {JSON.stringify({ articles: topPosts.map(p => ({ id: p.id, title: p.data.title, date: p.data.date, excerpt: stripMarkdown(p.body ?? '', 200) })), folders: [...catMap].map(([k,v]) => ({ name: k, count: v.count, posts: v.posts.map(p => ({ id: p.id, title: p.data.title, date: p.data.date })) })) })}
+</script>
+
+<script>
+  const BASE = '/blog';
+  const grid = document.getElementById('notes-grid')!;
+  const preview = document.getElementById('notes-preview')!;
+  const previewContent = document.getElementById('preview-content')!;
+  const branchTree = document.getElementById('branch-tree')!;
+  const btns = grid.querySelectorAll('.note-btn') as NodeListOf<HTMLElement>;
+
+  let pinnedFolder: string | null = null;
+  let hoverTimeout: ReturnType<typeof setTimeout>;
+
+  const serverData = JSON.parse(document.getElementById('preview-data')!.textContent!.trim());
+  const previewMap: Record<string, any> = {};
+  serverData.articles.forEach((p: any) => { previewMap[p.id] = p; });
+  const folderMap: Record<string, any> = {};
+  serverData.folders.forEach((f: any) => { folderMap[f.name] = f; });
+
+  function hideAllPanels() {
+    preview.classList.add('hidden');
+    branchTree.classList.add('hidden');
+    previewContent.innerHTML = '';
+    branchTree.innerHTML = '';
+  }
+
+  function resetAllBtns() {
+    btns.forEach(b => { b.classList.remove('focused', 'dimmed'); });
+    grid.classList.remove('shifted');
+    if (!pinnedFolder) hideAllPanels();
+  }
+
+  function showArticlePreview(postId: string) {
+    const data = previewMap[postId];
+    if (!data) return;
+    hideAllPanels();
+    preview.classList.remove('hidden');
+    previewContent.innerHTML = `
+      <div class="preview-header">
+        <h3>${esc(data.title)}</h3>
+        <div class="preview-date">${data.date ? new Date(data.date).toLocaleDateString('zh-CN', {year:'numeric',month:'long',day:'numeric'}) : ''}</div>
+      </div>
+      <div class="preview-excerpt">${esc(data.excerpt)}</div>
+      <a href="${BASE}/notes/${postId}" class="preview-link">阅读全文 →</a>
+    `;
+  }
+
+  function showBranch(folderName: string, pinned: boolean) {
+    const data = folderMap[folderName];
+    if (!data) return;
+    hideAllPanels();
+    branchTree.classList.remove('hidden');
+    let html = `<div class="branch-title">📁 ${esc(folderName)}`;
+    if (pinned) html += '<span class="pin-indicator">已固定</span>';
+    html += '</div>';
+    data.posts.forEach((p: any) => {
+      html += `<a href="${BASE}/notes/${p.id}" class="branch-item is-post">📄 ${esc(p.title)}</a>`;
+    });
+    if (!pinned) html += '<div style="margin-top:12px;font-size:11px;color:#999;">点击文件夹固定此视图</div>';
+    branchTree.innerHTML = html;
+  }
+
+  function focusItem(btn: HTMLElement) {
+    const type = btn.dataset.type!;
+    const id = btn.dataset.id!;
+    resetAllBtns();
+    btns.forEach(b => b.classList.add('dimmed'));
+    btn.classList.remove('dimmed');
+    btn.classList.add('focused');
+    grid.classList.add('shifted');
+    if (type === 'post') showArticlePreview(id);
+    else showBranch(id, false);
+  }
+
+  function unfocusAll() {
+    if (pinnedFolder) {
+      resetAllBtns();
+      const fb = grid.querySelector(`[data-id="${CSS.escape(pinnedFolder)}"]`) as HTMLElement;
+      if (fb) {
+        btns.forEach(b => b.classList.add('dimmed'));
+        fb.classList.remove('dimmed');
+        fb.classList.add('focused');
+        grid.classList.add('shifted');
+        showBranch(pinnedFolder, true);
+      }
+      return;
+    }
+    resetAllBtns();
+  }
+
+  btns.forEach((btn) => {
+    btn.addEventListener('mouseenter', () => { clearTimeout(hoverTimeout); focusItem(btn); });
+    btn.addEventListener('mouseleave', () => {
+      hoverTimeout = setTimeout(() => { if (!pinnedFolder || btn.dataset.id !== pinnedFolder) unfocusAll(); }, 200);
+    });
+    btn.addEventListener('click', (e) => {
+      if (btn.dataset.type === 'folder') {
+        e.preventDefault();
+        if (pinnedFolder === btn.dataset.id) { pinnedFolder = null; unfocusAll(); }
+        else { pinnedFolder = btn.dataset.id!; focusItem(btn); showBranch(btn.dataset.id!, true); }
+      } else {
+        window.location.href = `${BASE}/notes/${btn.dataset.id}`;
+      }
+    });
+  });
+
+  const stage = document.getElementById('notes-stage')!;
+  stage.addEventListener('mouseleave', () => { hoverTimeout = setTimeout(() => { if (!pinnedFolder) unfocusAll(); }, 300); });
+  preview.addEventListener('mouseenter', () => clearTimeout(hoverTimeout));
+  branchTree.addEventListener('mouseenter', () => clearTimeout(hoverTimeout));
+  preview.addEventListener('mouseleave', () => { hoverTimeout = setTimeout(() => { if(!pinnedFolder) unfocusAll(); }, 300); });
+  branchTree.addEventListener('mouseleave', () => { hoverTimeout = setTimeout(() => { if(!pinnedFolder) unfocusAll(); }, 300); });
+
+  function esc(s: string) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+</script>
