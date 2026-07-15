@@ -368,7 +368,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     function onBranchLeave() {
       hoverTimer = setTimeout(() => {
         if (!activePath || !expandedPaths[activePath]) resetAll();
-      }, 600);
+      }, 200);
     }
 
     // ── Event: mouseenter on tree items ──
@@ -393,7 +393,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       }
       hoverTimer = setTimeout(() => {
         if (!activePath || !expandedPaths[activePath]) resetAll();
-      }, 600);
+      }, 200);
     });
 
     // ── Event: branch container hover ──
