@@ -5,12 +5,10 @@ import { BASE } from '../../consts';
 
 const allNotes = await getCollection('notes');
 
-// Build tree
 interface TreeNode {
   name: string; type: 'folder' | 'doc'; path: string;
   children?: TreeNode[]; count?: number;
   title?: string; date?: Date; excerpt?: string; tags?: string[];
-  isIndex?: boolean;
 }
 
 function buildTree(notes: any[], scope: string = ''): TreeNode[] {
@@ -20,33 +18,18 @@ function buildTree(notes: any[], scope: string = ''): TreeNode[] {
   for (const note of notes) {
     const id: string = note.id;
     if (id.endsWith('/index')) continue;
-
     const relative = scope ? (id.startsWith(scope + '/') ? id.slice(scope.length + 1) : '') : id;
     if (!relative && !scope) {
-      // top-level doc
-      docs.push({
-        name: note.data.title,
-        type: 'doc', path: id,
-        title: note.data.title, date: note.data.date,
-        excerpt: note.body?.slice(0, 150), tags: note.data.tags,
-      });
+      docs.push({ name: note.data.title, type: 'doc', path: id, title: note.data.title, date: note.data.date, excerpt: note.body?.slice(0, 150), tags: note.data.tags });
       continue;
     }
     if (!relative) continue;
-
     const slashIdx = relative.indexOf('/');
     if (slashIdx === -1) {
-      // Direct child doc
       if (scope || id === relative) {
-        docs.push({
-          name: note.data.title,
-          type: 'doc', path: id,
-          title: note.data.title, date: note.data.date,
-          excerpt: note.body?.slice(0, 150), tags: note.data.tags,
-        });
+        docs.push({ name: note.data.title, type: 'doc', path: id, title: note.data.title, date: note.data.date, excerpt: note.body?.slice(0, 150), tags: note.data.tags });
       }
     } else {
-      // Has sub-path → first segment is a folder
       const folderName = relative.slice(0, slashIdx);
       if (!folders.has(folderName)) {
         folders.set(folderName, { name: folderName, type: 'folder', path: scope ? `${scope}/${folderName}` : folderName, children: [], count: 0 });
@@ -54,12 +37,9 @@ function buildTree(notes: any[], scope: string = ''): TreeNode[] {
     }
   }
 
-  // Count children for each folder
   for (const [fname, folder] of folders) {
     const fpath = scope ? `${scope}/${fname}` : fname;
-    const children = notes.filter((n: any) =>
-      n.id.startsWith(fpath + '/') && !n.id.endsWith('/index')
-    );
+    const children = notes.filter((n: any) => n.id.startsWith(fpath + '/') && !n.id.endsWith('/index'));
     folder.count = children.length;
     folder.children = buildTree(notes, fpath);
   }
@@ -72,9 +52,7 @@ const tree = buildTree(allNotes);
 const treeJSON = JSON.stringify(tree).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
 const baseURL = BASE;
 
-function fmtDate(d: Date) {
-  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-}
+function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; }
 ---
 
 <Layout title="笔记">
@@ -90,10 +68,9 @@ function fmtDate(d: Date) {
       {tree.map((item) => (
         <div class="tree-row flex" data-path={item.path} data-type={item.type}>
           <button
-            class="tree-item inline-flex items-center gap-3 px-5 py-3 rounded-full border border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm transition-all duration-300 dark:bg-[#0a1f47] dark:border-gray-700 dark:hover:border-gray-500"
+            class="tree-item inline-flex items-center gap-3 px-5 py-3 rounded-full border border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm dark:bg-[#0a1f47] dark:border-gray-700 dark:hover:border-gray-500"
             data-path={item.path} data-type={item.type}
           >
-            <!-- Icon -->
             <span class="flex-shrink-0">
               {item.type === 'folder' ? (
                 <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -101,17 +78,14 @@ function fmtDate(d: Date) {
                 <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
               )}
             </span>
-            <!-- Label -->
             <span class="flex-shrink text-sm sm:text-base font-medium text-[#1A1A1A] dark:text-white whitespace-nowrap">
               {item.type === 'folder' ? item.name : (item.title || item.name)}
             </span>
-            <!-- Badge for folders -->
             {item.type === 'folder' && item.count !== undefined && item.count > 0 && (
               <span class="flex-shrink-0 inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 text-xs font-bold text-white bg-primary rounded-full dark:bg-red-500">
                 {item.count}
               </span>
             )}
-            <!-- Date for docs -->
             {item.type === 'doc' && item.date && (
               <span class="flex-shrink-0 text-xs text-[#999] dark:text-gray-500 ml-1">
                 {fmtDate(item.date)}
@@ -123,13 +97,13 @@ function fmtDate(d: Date) {
     </div>
 
     <!-- SVG overlay for branch lines -->
-    <svg id="branch-svg" class="fixed inset-0 pointer-events-none z-40" style="display:none"></svg>
+    <svg id="branch-svg" class="branch-overlay fixed inset-0 z-40"></svg>
 
-    <!-- Branch sub-items -->
-    <div id="branch-items" class="fixed inset-0 pointer-events-none z-50" style="display:none"></div>
+    <!-- Branch sub-items container -->
+    <div id="branch-items" class="branch-overlay fixed inset-0 z-50"></div>
 
     <!-- Preview card -->
-    <div id="preview-card" class="fixed z-50 bg-white rounded-xl shadow-lg border border-gray-200 p-5 max-w-xs opacity-0 transition-opacity duration-300 dark:bg-[#0a1f47] dark:border-gray-600" style="display:none">
+    <div id="preview-card" class="preview-overlay fixed z-50 bg-white rounded-xl shadow-lg border border-gray-200 p-5 max-w-xs dark:bg-[#0a1f47] dark:border-gray-600">
       <h3 class="text-base font-bold text-[#1A1A1A] mb-2 dark:text-white" id="preview-title"></h3>
       <p class="text-xs text-[#666666] leading-relaxed line-clamp-4 dark:text-gray-400" id="preview-excerpt"></p>
       <div class="mt-2 text-xs text-primary dark:text-red-400">点击阅读 →</div>
@@ -138,196 +112,301 @@ function fmtDate(d: Date) {
 </Layout>
 
 <style is:global>
-  .tree-item { transition: transform 0.4s cubic-bezier(0.25,0.1,0.25,1), opacity 0.3s ease-out, border-color 0.3s, box-shadow 0.3s; }
-  .tree-row { transition: opacity 0.3s ease-out; }
+  /* ── Item transitions (visual styles unchanged) ── */
+  .tree-item {
+    transition: transform 0.4s cubic-bezier(0.25,0.1,0.25,1), border-color 0.3s, box-shadow 0.3s;
+  }
+  .tree-row {
+    transition: opacity 0.3s ease-out;
+  }
+
+  /* ── Dimmed state (other items fade to 8%) ── */
+  .tree-row.dimmed {
+    opacity: 0.08;
+  }
+
+  /* ── Expanded folder: button slides right ── */
+  .tree-row.is-expanded .tree-item {
+    transform: translateX(36px);
+  }
+
+  /* ── Branch overlay base (hidden by default, no display:none!) ── */
+  .branch-overlay {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+    pointer-events: none;
+  }
+  .branch-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* ── Branch sub buttons ── */
   .branch-sub-btn {
-    position: fixed; z-index: 50; display: inline-flex; align-items: center; gap: 8px;
+    position: fixed; z-index: 50;
+    display: inline-flex; align-items: center; gap: 8px;
     padding: 10px 18px; border-radius: 9999px;
     border: 1px solid #e5e7eb; background: #fff; color: #1A1A1A;
     font-size: 14px; font-weight: 500; white-space: nowrap;
     box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    transition: opacity 0.3s ease-out, transform 0.4s cubic-bezier(0.25,0.1,0.25,1);
-    opacity: 0; transform: translateX(-12px); cursor: pointer;
+    opacity: 0; visibility: hidden;
+    transform: translateX(-12px);
+    transition: opacity 0.3s ease-out, visibility 0.3s ease-out, transform 0.4s cubic-bezier(0.25,0.1,0.25,1);
+    cursor: pointer;
   }
-  .branch-sub-btn.show { opacity: 1; transform: translateX(0); }
+  .branch-sub-btn.visible {
+    opacity: 1; visibility: visible; transform: translateX(0);
+  }
   .branch-sub-btn:hover { border-color: #9ca3af; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
   .dark .branch-sub-btn { background: #0a1f47; border-color: #374151; color: #e5e7eb; }
   .dark .branch-sub-btn:hover { border-color: #6b7280; }
+
+  /* ── SVG branch lines ── */
   #branch-svg path {
-    fill: none; stroke: #d1d5db; stroke-width: 1.5; stroke-linecap: round;
-    transition: d 0.4s cubic-bezier(0.25,0.1,0.25,1);
+    fill: none; stroke: #d1d5db; stroke-width: 1; stroke-linecap: round;
   }
   .dark #branch-svg path { stroke: #4b5563; }
+
+  /* ── Preview card overlay ── */
+  .preview-overlay {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+  }
+  .preview-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+  }
 </style>
 
 <script>
-  const treeData = JSON.parse('{treeJSON}') as any[];
-  const BASE = '{baseURL}';
+  document.addEventListener('DOMContentLoaded', () => {
+    const treeData = JSON.parse('{treeJSON}') as any[];
+    const BASE = '{baseURL}';
 
-  let hoverTimer: any = null;
-  let activeFolder: string | null = null;
-  let expanded: Record<string, boolean> = {};
+    let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+    let activePath: string | null = null;
+    let expandedPaths: Record<string, boolean> = {};
 
-  const treeEl = document.getElementById('notes-tree')!;
-  const svgEl = document.getElementById('branch-svg')!;
-  const branchCt = document.getElementById('branch-items')!;
-  const previewEl = document.getElementById('preview-card')!;
-  const previewTitle = document.getElementById('preview-title')!;
-  const previewExcerpt = document.getElementById('preview-excerpt')!;
+    const treeEl = document.getElementById('notes-tree')!;
+    const svgEl = document.getElementById('branch-svg')!;
+    const branchCt = document.getElementById('branch-items')!;
+    const previewEl = document.getElementById('preview-card')!;
+    const previewTitle = document.getElementById('preview-title')!;
+    const previewExcerpt = document.getElementById('preview-excerpt')!;
 
-  function findNode(path: string, nodes = treeData): any | null {
-    for (const n of nodes) {
-      if (n.path === path) return n;
-      if (n.children) { const r = findNode(path, n.children); if (r) return r; }
-    }
-    return null;
-  }
-  function btnEl(path: string) { return treeEl.querySelector(`button[data-path="${CSS.escape(path)}"]`) as HTMLElement; }
-  function allRows() { return treeEl.querySelectorAll('.tree-row') as NodeListOf<HTMLElement>; }
-
-  function clearAll() {
-    activeFolder = null; hidePreview(); clearBranches();
-    allRows().forEach(r => { r.style.opacity = '1'; });
-    for (const p of Object.keys(expanded)) {
-      expanded[p] = false;
-      const b = btnEl(p); if (b) b.style.transform = '';
-    }
-  }
-
-  function clearBranches() { svgEl.innerHTML = ''; svgEl.style.display = 'none'; branchCt.innerHTML = ''; branchCt.style.display = 'none'; }
-  function hidePreview() { previewEl.style.opacity = '0'; previewEl.style.display = 'none'; }
-
-  function drawBranches(folderPath: string, folderNode: any) {
-    const btn = btnEl(folderPath);
-    if (!btn || !folderNode?.children?.length) return;
-    const rect = btn.getBoundingClientRect();
-    const isExp = expanded[folderPath];
-
-    svgEl.innerHTML = '';
-    branchCt.innerHTML = '';
-    svgEl.style.display = 'block';
-    branchCt.style.display = 'block';
-
-    const startX = rect.right + 10;
-    const startY = rect.top + rect.height / 2;
-    const kids = folderNode.children;
-    const count = kids.length;
-    const spacing = Math.max(52, Math.min(76, 360 / count));
-    const totalH = spacing * (count - 1);
-    const baseY = startY - totalH / 2;
-    const endX = startX + (isExp ? 180 : 80);
-
-    kids.forEach((child: any, i: number) => {
-      const endY = baseY + i * spacing;
-      const cx1 = startX + (isExp ? 60 : 25);
-      const cx2 = endX - (isExp ? 40 : 15);
-      const d = `M${startX},${startY} C${cx1},${startY} ${cx2},${endY} ${endX},${endY}`;
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', d);
-      svgEl.appendChild(path);
-
-      const subBtn = document.createElement('button');
-      subBtn.className = 'branch-sub-btn';
-      subBtn.style.left = endX + 'px';
-      subBtn.style.top = (endY - 20) + 'px';
-      subBtn.innerHTML = `<span>${child.type === 'folder'
-        ? '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
-        : '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
-      }</span><span class="whitespace-nowrap">${child.type === 'folder' ? child.name : (child.title || child.name)}</span>${child.type === 'folder' && child.count ? `<span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-primary rounded-full">${child.count}</span>` : ''}`;
-
-      if (child.type === 'folder') {
-        subBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleFolder(child.path); });
-        subBtn.addEventListener('mouseenter', () => { clearTimeout(hoverTimer); });
-        subBtn.addEventListener('mouseleave', () => { hoverTimer = setTimeout(() => { if (!expanded[child.path]) clearAll(); }, 400); });
-      } else {
-        subBtn.addEventListener('click', (e) => { e.stopPropagation(); location.href = `${BASE}/notes/${child.path}/`; });
+    // ── DOM helpers ──
+    function findNode(path: string, nodes = treeData): any | null {
+      for (const n of nodes) {
+        if (n.path === path) return n;
+        if (n.children) { const r = findNode(path, n.children); if (r) return r; }
       }
-      branchCt.appendChild(subBtn);
-      requestAnimationFrame(() => { subBtn.classList.add('show'); });
-    });
-  }
+      return null;
+    }
+    function rowEl(path: string) { return treeEl.querySelector(`.tree-row[data-path="${CSS.escape(path)}"]`) as HTMLElement; }
+    function btnEl(path: string) { return treeEl.querySelector(`.tree-item[data-path="${CSS.escape(path)}"]`) as HTMLElement; }
+    function allRows() { return treeEl.querySelectorAll('.tree-row') as NodeListOf<HTMLElement>; }
 
-  function hoverFolder(path: string) {
-    if (expanded[path]) return;
-    const node = findNode(path);
-    if (!node?.children?.length) return;
-    activeFolder = path; hidePreview();
-    allRows().forEach(r => { r.style.opacity = r.dataset.path === path ? '1' : '0.08'; });
-    drawBranches(path, node);
-  }
+    // ── State reset ──
+    function resetAll() {
+      activePath = null;
+      // Remove all dimmed states
+      allRows().forEach(r => r.classList.remove('dimmed'));
+      // Collapse all expanded folders
+      for (const p of Object.keys(expandedPaths)) {
+        const row = rowEl(p);
+        if (row) row.classList.remove('is-expanded');
+      }
+      expandedPaths = {};
+      // Hide branches
+      svgEl.innerHTML = '';
+      svgEl.classList.remove('visible');
+      branchCt.innerHTML = '';
+      branchCt.classList.remove('visible');
+      // Hide preview
+      previewEl.classList.remove('visible');
+    }
 
-  function toggleFolder(path: string) {
-    const node = findNode(path);
-    if (!node?.children?.length) return;
-    expanded[path] = !expanded[path];
-    if (expanded[path]) {
-      activeFolder = path;
-      allRows().forEach(r => { r.style.opacity = r.dataset.path === path ? '1' : '0.06'; });
-      const btn = btnEl(path); if (btn) btn.style.transform = 'translateX(36px)';
+    // ── Dim all rows except target ──
+    function dimOthers(keepPath: string) {
+      allRows().forEach(r => {
+        if (r.dataset.path === keepPath) r.classList.remove('dimmed');
+        else r.classList.add('dimmed');
+      });
+    }
+
+    // ── Draw branch lines + sub buttons ──
+    function drawBranches(folderPath: string, folderNode: any) {
+      const btn = btnEl(folderPath);
+      if (!btn || !folderNode?.children?.length) return;
+      const rect = btn.getBoundingClientRect();
+      const isExp = !!expandedPaths[folderPath];
+
+      svgEl.innerHTML = '';
+      branchCt.innerHTML = '';
+      svgEl.classList.add('visible');
+      branchCt.classList.add('visible');
+
+      const startX = rect.right + 10;
+      const startY = rect.top + rect.height / 2;
+      const kids = folderNode.children;
+      const count = kids.length;
+      const spacing = Math.max(52, Math.min(76, 360 / count));
+      const totalH = spacing * (count - 1);
+      const baseY = startY - totalH / 2;
+      const endX = startX + (isExp ? 180 : 80);
+
+      kids.forEach((child: any, i: number) => {
+        const endY = baseY + i * spacing;
+        const cx1 = startX + (isExp ? 60 : 25);
+        const cx2 = endX - (isExp ? 40 : 15);
+        const d = `M${startX},${startY} C${cx1},${startY} ${cx2},${endY} ${endX},${endY}`;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        svgEl.appendChild(path);
+
+        // Sub button
+        const sub = document.createElement('button');
+        sub.className = 'branch-sub-btn';
+        sub.style.left = endX + 'px';
+        sub.style.top = (endY - 20) + 'px';
+        sub.innerHTML = `<span>${child.type === 'folder'
+          ? '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+          : '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
+        }</span><span class="whitespace-nowrap">${child.type === 'folder' ? child.name : (child.title || child.name)}</span>${child.type === 'folder' && child.count ? `<span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-primary rounded-full">${child.count}</span>` : ''}`;
+
+        // Bind events on sub buttons
+        if (child.type === 'folder') {
+          sub.addEventListener('click', (e) => { e.stopPropagation(); toggleFolder(child.path); });
+          sub.addEventListener('mouseenter', onBranchEnter);
+          sub.addEventListener('mouseleave', onBranchLeave);
+        } else {
+          sub.addEventListener('click', (e) => { e.stopPropagation(); window.location.href = `${BASE}/notes/${child.path}/`; });
+          sub.addEventListener('mouseenter', onBranchEnter);
+          sub.addEventListener('mouseleave', onBranchLeave);
+        }
+        branchCt.appendChild(sub);
+        // Trigger fade-in on next frame
+        requestAnimationFrame(() => { sub.classList.add('visible'); });
+      });
+    }
+
+    // ── Folder interaction ──
+    function hoverFolder(path: string) {
+      if (expandedPaths[path]) return;
+      const node = findNode(path);
+      if (!node?.children?.length) return;
+      activePath = path;
+      previewEl.classList.remove('visible');
+      svgEl.classList.remove('visible');
+      branchCt.classList.remove('visible');
+      svgEl.innerHTML = '';
+      branchCt.innerHTML = '';
+      dimOthers(path);
       drawBranches(path, node);
-    } else { clearAll(); }
-  }
-
-  function hoverDoc(path: string) {
-    const node = findNode(path);
-    if (!node) return;
-    activeFolder = null; clearBranches();
-    const btn = btnEl(path);
-    if (!btn) return;
-    const rect = btn.getBoundingClientRect();
-    allRows().forEach(r => { r.style.opacity = r.dataset.path === path ? '1' : '0.08'; });
-
-    let excerpt = node.excerpt || '';
-    if (!excerpt) {
-      const raw = (node.body || node._body || '');
-      excerpt = raw.replace(/[#*`\[\]()>!-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
     }
 
-    previewTitle.textContent = node.title || node.name || '';
-    previewExcerpt.textContent = excerpt || '暂无摘要';
-    previewEl.style.display = 'block';
-    previewEl.style.left = (rect.right + 16) + 'px';
-    previewEl.style.top = Math.max(16, rect.top - 10) + 'px';
-    requestAnimationFrame(() => { previewEl.style.opacity = '1'; });
-  }
+    function toggleFolder(path: string) {
+      const node = findNode(path);
+      if (!node?.children?.length) return;
+      const row = rowEl(path);
+      const wasExpanded = !!expandedPaths[path];
 
-  // Event delegation
-  treeEl.addEventListener('mouseover', (e) => {
-    const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
-    if (!target) return;
-    clearTimeout(hoverTimer);
-    const path = target.dataset.path!;
-    const type = target.dataset.type!;
-    if (type === 'folder') { hoverFolder(path); }
-    else { hoverDoc(path); }
-  });
-
-  treeEl.addEventListener('mouseout', (e) => {
-    const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
-    if (!target) return;
-    hoverTimer = setTimeout(() => {
-      if (!activeFolder || !expanded[activeFolder]) clearAll();
-    }, 400);
-  });
-
-  treeEl.addEventListener('click', (e) => {
-    const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
-    if (!target) return;
-    const path = target.dataset.path!;
-    const type = target.dataset.type!;
-    if (type === 'folder') { e.preventDefault(); toggleFolder(path); }
-    else { location.href = `${BASE}/notes/${path}/`; }
-  });
-
-  document.addEventListener('click', (e) => {
-    const t = e.target as HTMLElement;
-    if (!t.closest('#notes-tree') && !t.closest('#branch-items') && !t.closest('#preview-card')) {
-      clearAll();
+      if (wasExpanded) {
+        resetAll();
+      } else {
+        expandedPaths[path] = true;
+        activePath = path;
+        if (row) row.classList.add('is-expanded');
+        dimOthers(path);
+        drawBranches(path, node);
+      }
     }
-  });
 
-  branchCt.addEventListener('mouseenter', () => clearTimeout(hoverTimer));
-  branchCt.addEventListener('mouseleave', () => {
-    hoverTimer = setTimeout(() => { if (!activeFolder || !expanded[activeFolder]) clearAll(); }, 500);
+    // ── Document interaction ──
+    function hoverDoc(path: string) {
+      const node = findNode(path);
+      if (!node) return;
+      activePath = path;
+      // Clear branches
+      svgEl.innerHTML = '';
+      svgEl.classList.remove('visible');
+      branchCt.innerHTML = '';
+      branchCt.classList.remove('visible');
+
+      dimOthers(path);
+
+      // Position preview card
+      const btn = btnEl(path);
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+      previewTitle.textContent = node.title || node.name || '';
+      const excerpt = (node.excerpt || '').replace(/[#*`\[\]()>!-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+      previewExcerpt.textContent = excerpt || '暂无摘要';
+      previewEl.style.left = (rect.right + 16) + 'px';
+      previewEl.style.top = Math.max(16, rect.top - 10) + 'px';
+      previewEl.classList.add('visible');
+    }
+
+    // ── Branch hover handling (prevent flicker) ──
+    function onBranchEnter() {
+      if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+    }
+    function onBranchLeave() {
+      hoverTimer = setTimeout(() => {
+        if (!activePath || !expandedPaths[activePath]) resetAll();
+      }, 400);
+    }
+
+    // ── Event: mouseenter on tree items ──
+    treeEl.addEventListener('mouseover', (e) => {
+      const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
+      if (!target) return;
+      if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+      const path = target.dataset.path!;
+      const type = target.dataset.type!;
+      if (type === 'folder') { hoverFolder(path); }
+      else { hoverDoc(path); }
+    });
+
+    // ── Event: mouseleave from tree area ──
+    treeEl.addEventListener('mouseout', (e) => {
+      const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
+      if (!target) return;
+      hoverTimer = setTimeout(() => {
+        if (!activePath || !expandedPaths[activePath]) resetAll();
+      }, 400);
+    });
+
+    // ── Event: branch container hover ──
+    branchCt.addEventListener('mouseenter', onBranchEnter);
+    branchCt.addEventListener('mouseleave', onBranchLeave);
+
+    // ── Event: preview card hover ──
+    previewEl.addEventListener('mouseenter', onBranchEnter);
+    previewEl.addEventListener('mouseleave', onBranchLeave);
+
+    // ── Event: click on tree items ──
+    treeEl.addEventListener('click', (e) => {
+      const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
+      if (!target) return;
+      const path = target.dataset.path!;
+      const type = target.dataset.type!;
+      if (type === 'folder') {
+        e.preventDefault();
+        toggleFolder(path);
+      } else {
+        window.location.href = `${BASE}/notes/${path}/`;
+      }
+    });
+
+    // ── Event: click outside clears all ──
+    document.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest('#notes-tree') && !t.closest('#branch-items') && !t.closest('#preview-card') && !t.closest('#branch-svg')) {
+        resetAll();
+      }
+    });
   });
 </script>
