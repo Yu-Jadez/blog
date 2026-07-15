@@ -150,6 +150,9 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
   #branch-svg.visible {
     pointer-events: none; /* SVG must not block clicks */
   }
+  #branch-items.visible {
+    pointer-events: auto; /* sub-buttons must be clickable */
+  }
 
   /* ── Branch sub buttons ── */
   .branch-sub-btn {
@@ -267,12 +270,12 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       const spacing = Math.max(52, Math.min(76, 360 / count));
       const totalH = spacing * (count - 1);
       const baseY = startY - totalH / 2;
-      const endX = startX + (isExp ? 100 : 24);
+      const endX = startX + (isExp ? 100 : 16);
 
       kids.forEach((child: any, i: number) => {
         const endY = baseY + i * spacing;
-        const cx1 = startX + (isExp ? 30 : 8);
-        const cx2 = endX - (isExp ? 20 : 6);
+        const cx1 = startX + (isExp ? 30 : 5);
+        const cx2 = endX - (isExp ? 20 : 4);
         const d = `M${startX},${startY} C${cx1},${startY} ${cx2},${endY} ${endX},${endY}`;
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', d);
