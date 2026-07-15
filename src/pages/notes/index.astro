@@ -66,7 +66,7 @@ topPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     font-size: 0.9rem; color: #888; margin-bottom: 2.5rem;
   }
   .n-list {
-    display: flex; flex-direction: column; gap: 6px;
+    display: flex; flex-direction: column; gap: 10px;
     position: relative;
   }
   .n-row {
@@ -88,7 +88,6 @@ topPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
   .n-btn.focused {
     border-color: #E63946; background: #E63946; color: #fff;
     box-shadow: 0 6px 22px rgba(230,57,70,0.28);
-    transform: translateX(-4px);
   }
   .n-btn.focused .n-badge { background: rgba(255,255,255,0.28); color: #fff; }
   .n-btn.dimmed {
