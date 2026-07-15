@@ -262,12 +262,12 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       const spacing = Math.max(52, Math.min(76, 360 / count));
       const totalH = spacing * (count - 1);
       const baseY = startY - totalH / 2;
-      const endX = startX + (isExp ? 180 : 80);
+      const endX = startX + (isExp ? 140 : 48);
 
       kids.forEach((child: any, i: number) => {
         const endY = baseY + i * spacing;
-        const cx1 = startX + (isExp ? 60 : 25);
-        const cx2 = endX - (isExp ? 40 : 15);
+        const cx1 = startX + (isExp ? 40 : 14);
+        const cx2 = endX - (isExp ? 30 : 10);
         const d = `M${startX},${startY} C${cx1},${startY} ${cx2},${endY} ${endX},${endY}`;
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', d);
@@ -365,7 +365,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     function onBranchLeave() {
       hoverTimer = setTimeout(() => {
         if (!activePath || !expandedPaths[activePath]) resetAll();
-      }, 400);
+      }, 600);
     }
 
     // ── Event: mouseenter on tree items ──
@@ -385,7 +385,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       if (!target) return;
       hoverTimer = setTimeout(() => {
         if (!activePath || !expandedPaths[activePath]) resetAll();
-      }, 400);
+      }, 600);
     });
 
     // ── Event: branch container hover ──
