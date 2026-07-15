@@ -100,7 +100,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     <svg id="branch-svg" class="branch-overlay fixed inset-0 z-40"></svg>
 
     <!-- Branch sub-items container -->
-    <div id="branch-items" class="branch-overlay fixed inset-0 z-50"></div>
+    <div id="branch-items" class="branch-overlay z-50"></div>
 
     <!-- Preview card -->
     <div id="preview-card" class="preview-overlay fixed z-50 bg-white rounded-xl shadow-lg border border-gray-200 p-5 max-w-xs dark:bg-[#0a1f47] dark:border-gray-600">
@@ -146,7 +146,9 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
   .branch-overlay.visible {
     opacity: 1;
     visibility: visible;
-    pointer-events: auto;
+  }
+  #branch-svg.visible {
+    pointer-events: none; /* SVG must not block clicks */
   }
 
   /* ── Branch sub buttons ── */
