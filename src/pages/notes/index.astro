@@ -97,7 +97,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     </div>
 
     <!-- SVG overlay for branch lines -->
-    <svg id="branch-svg" class="branch-overlay fixed inset-0 z-40"></svg>
+    <svg id="branch-svg" class="branch-overlay fixed inset-0 z-40" style="width:100vw;height:100vh"></svg>
 
     <!-- Branch sub-items container -->
     <div id="branch-items" class="branch-overlay z-50"></div>
@@ -175,6 +175,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
   .dark .branch-sub-btn:hover { border-color: #6b7280; }
 
   /* ── SVG branch lines ── */
+  #branch-svg { overflow: visible; }
   #branch-svg path {
     fill: none; stroke: #d1d5db; stroke-width: 1; stroke-linecap: round;
   }
