@@ -194,8 +194,8 @@ for (const p of topPosts) {
   }
 </style>
 
-<script type="application/json" id="preview-data">
-  {JSON.stringify({ articles: topPosts.map(p => ({ id: p.id, title: p.data.title, date: p.data.date, excerpt: stripMarkdown(p.body ?? '', 200) })), folders: [...catMap].map(([k,v]) => ({ name: k, count: v.count, posts: v.posts.map(p => ({ id: p.id, title: p.data.title, date: p.data.date })) })) })}
+<script is:inline>
+  window.__NOTES_DATA__ = {JSON.stringify({ articles: topPosts.map(p => ({ id: p.id, title: p.data.title, date: p.data.date, excerpt: stripMarkdown(p.body ?? '', 200) })), folders: [...catMap].map(([k,v]) => ({ name: k, count: v.count, posts: v.posts.map(p => ({ id: p.id, title: p.data.title, date: p.data.date })) })) })};
 </script>
 
 <script>
@@ -209,7 +209,7 @@ for (const p of topPosts) {
   let pinnedFolder: string | null = null;
   let hoverTimeout: ReturnType<typeof setTimeout>;
 
-  const serverData = JSON.parse(document.getElementById('preview-data')!.textContent!.trim());
+  const serverData = (window as any).__NOTES_DATA__;
   const previewMap: Record<string, any> = {};
   serverData.articles.forEach((p: any) => { previewMap[p.id] = p; });
   const folderMap: Record<string, any> = {};
