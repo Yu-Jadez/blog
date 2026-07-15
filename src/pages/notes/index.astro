@@ -21,7 +21,6 @@ for (const n of notes) {
 
 topPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
-// Build items array: folders first, then articles
 const items: { type: 'folder' | 'post'; id: string; data?: any }[] = [];
 for (const [name, info] of catMap) {
   items.push({ type: 'folder', id: name, data: { count: info.count, posts: info.posts } });
@@ -37,19 +36,19 @@ for (const p of topPosts) {
     <p class="text-sm sm:text-base text-[#666666] mb-6 sm:mb-8 dark:text-gray-400">这里记录我的学习笔记，温故而知新。</p>
 
     <div id="notes-stage" class="notes-stage">
-      <!-- Item buttons -->
       <div id="notes-grid" class="notes-grid">
         {items.map((item, i) => {
           const label = item.type === 'folder' ? item.id : (item.data?.data?.title || item.id);
           const icon = item.type === 'folder' ? '📁' : '📄';
           const count = item.type === 'folder' ? item.data.count : null;
+          const title = item.type === 'post' ? item.data.data.title : '';
+          const date = item.type === 'post' ? String(item.data.data.date || '') : '';
+          const excerpt = item.type === 'post' ? stripMarkdown(item.data.body ?? '', 200) : '';
+          const children = item.type === 'folder' ? JSON.stringify(item.data.posts.map((p: any) => ({ id: p.id, title: p.data.title, date: p.data.date }))) : '';
           return (
-            <button
-              class="note-btn group"
-              data-index={i}
-              data-type={item.type}
-              data-id={item.id}
-            >
+            <button class="note-btn" data-index={i} data-type={item.type} data-id={item.id}
+              data-title={title} data-date={date} data-excerpt={excerpt}
+              data-children={children} data-count={String(count || '')}>
               <span class="note-btn-icon">{icon}</span>
               <span class="note-btn-label">{label}</span>
               {count !== null && <span class="note-btn-count">{count}</span>}
@@ -58,12 +57,9 @@ for (const p of topPosts) {
         })}
       </div>
 
-      <!-- Preview / Branch panel -->
       <div id="notes-preview" class="notes-preview hidden">
         <div id="preview-content"></div>
       </div>
-
-      <!-- Branch tree for folders -->
       <div id="branch-tree" class="branch-tree hidden"></div>
     </div>
   </section>
@@ -74,18 +70,16 @@ for (const p of topPosts) {
   .notes-grid {
     display: flex; flex-wrap: wrap; gap: 12px;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    padding-bottom: 12px;
   }
-  .notes-grid.shifted {
-    transform: translateX(-20px);
-  }
-
+  .notes-grid.shifted { transform: translateX(-20px); }
   .note-btn {
     display: inline-flex; align-items: center; gap: 8px;
     padding: 10px 20px; border-radius: 24px;
     border: 2px solid #e0e0e0; background: #fff;
     font-size: 15px; font-weight: 500; color: #1A1A1A;
     cursor: pointer; transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    white-space: nowrap; position: relative;
+    white-space: nowrap; position: relative; font-family: inherit;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
   .note-btn:hover {
@@ -97,40 +91,25 @@ for (const p of topPosts) {
     transform: translateX(-10px);
     box-shadow: 0 8px 24px rgba(230,57,70,0.25);
   }
-  .note-btn.focused .note-btn-count {
-    background: rgba(255,255,255,0.3); color: #fff;
-  }
-  .note-btn.dimmed {
-    opacity: 0; pointer-events: none; transform: translateX(20px);
-  }
+  .note-btn.focused .note-btn-count { background: rgba(255,255,255,0.3); color: #fff; }
+  .note-btn.dimmed { opacity: 0; pointer-events: none; transform: translateX(20px); }
   .note-btn-icon { font-size: 18px; }
   .note-btn-label { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-  .note-btn-count {
-    font-size: 11px; background: #fde8ea; color: #E63946;
-    padding: 2px 8px; border-radius: 10px;
-  }
+  .note-btn-count { font-size: 11px; background: #fde8ea; color: #E63946; padding: 2px 8px; border-radius: 10px; }
 
-  /* Dark mode */
   .dark .note-btn { background: #0a1f47; border-color: #2a4a6a; color: #ddd; }
   .dark .note-btn:hover { border-color: #b05223; box-shadow: 0 4px 16px rgba(176,82,35,0.2); }
   .dark .note-btn.focused { background: #b05223; border-color: #b05223; color: #fff; }
   .dark .note-btn-count { background: rgba(176,82,35,0.2); color: #c97a4a; }
 
-  /* Preview panel */
-  .notes-preview {
+  .notes-preview, .branch-tree {
     position: absolute; right: 0; top: 0; width: 380px; max-width: 45%;
     background: #fff; border-radius: 16px; padding: 24px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-    border: 1px solid #eee;
-    animation: slideIn 0.3s ease;
-    max-height: 70vh; overflow-y: auto; z-index: 10;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12); border: 1px solid #eee;
+    animation: slideIn 0.3s ease; max-height: 70vh; overflow-y: auto; z-index: 10;
   }
-  .dark .notes-preview { background: #0a1f47; border-color: #2a4a6a; }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateX(40px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
+  .dark .notes-preview, .dark .branch-tree { background: #0a1f47; border-color: #2a4a6a; }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
 
   .preview-header { margin-bottom: 16px; }
   .preview-header h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; color: #1A1A1A; }
@@ -138,54 +117,20 @@ for (const p of topPosts) {
   .preview-header .preview-date { font-size: 12px; color: #999; }
   .preview-excerpt { font-size: 14px; color: #555; line-height: 1.7; }
   .dark .preview-excerpt { color: #bbb; }
-  .preview-link {
-    display: inline-block; margin-top: 16px; padding: 8px 20px;
-    background: #E63946; color: #fff; border-radius: 8px;
-    font-size: 13px; font-weight: 600; text-decoration: none;
-    transition: background 0.2s;
-  }
+  .preview-link { display: inline-block; margin-top: 16px; padding: 8px 20px; background: #E63946; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; transition: background 0.2s; }
   .preview-link:hover { background: #B71C1C; }
 
-  /* Branch tree */
-  .branch-tree {
-    position: absolute; right: 0; top: 0; width: 380px; max-width: 45%;
-    background: #fff; border-radius: 16px; padding: 24px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-    border: 1px solid #eee;
-    animation: slideIn 0.3s ease;
-    max-height: 70vh; overflow-y: auto; z-index: 10;
-  }
-  .dark .branch-tree { background: #0a1f47; border-color: #2a4a6a; }
-
-  .branch-title {
-    font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #1A1A1A;
-    display: flex; align-items: center; gap: 8px;
-  }
+  .branch-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #1A1A1A; display: flex; align-items: center; gap: 8px; }
   .dark .branch-title { color: #fff; }
   .branch-title .pin-indicator { font-size: 11px; background: #27ae60; color: #fff; padding: 2px 8px; border-radius: 8px; }
-
-  .branch-item {
-    display: block; padding: 8px 12px; margin: 2px 0;
-    border-radius: 8px; font-size: 14px; color: #1A1A1A;
-    text-decoration: none; transition: background 0.15s;
-  }
+  .branch-item { display: block; padding: 8px 12px; margin: 2px 0; border-radius: 8px; font-size: 14px; color: #1A1A1A; text-decoration: none; transition: background 0.15s; }
   .branch-item:hover { background: #f5f5f5; }
   .dark .branch-item { color: #ddd; }
   .dark .branch-item:hover { background: #1a3050; }
-
-  .branch-item.is-folder {
-    font-weight: 600; padding-left: 8px;
-    border-left: 3px solid #E63946;
-  }
+  .branch-item.is-folder { font-weight: 600; padding-left: 8px; border-left: 3px solid #E63946; }
   .dark .branch-item.is-folder { border-left-color: #b05223; }
   .branch-item.is-post { padding-left: 24px; font-size: 13px; color: #666; }
   .dark .branch-item.is-post { color: #aaa; }
-
-  .branch-connector {
-    width: 2px; height: 12px; background: #ddd;
-    margin-left: 12px;
-  }
-  .dark .branch-connector { background: #444; }
 
   @media (max-width: 768px) {
     .notes-preview, .branch-tree { position: relative; width: 100%; max-width: 100%; margin-top: 16px; }
@@ -194,12 +139,8 @@ for (const p of topPosts) {
   }
 </style>
 
-<script is:inline>
-  window.__NOTES_DATA__ = {JSON.stringify({ articles: topPosts.map(p => ({ id: p.id, title: p.data.title, date: p.data.date, excerpt: stripMarkdown(p.body ?? '', 200) })), folders: [...catMap].map(([k,v]) => ({ name: k, count: v.count, posts: v.posts.map(p => ({ id: p.id, title: p.data.title, date: p.data.date })) })) })};
-</script>
-
 <script>
-  const BASE = '/blog';
+  const B = '/blog';
   const grid = document.getElementById('notes-grid')!;
   const preview = document.getElementById('notes-preview')!;
   const previewContent = document.getElementById('preview-content')!;
@@ -207,107 +148,79 @@ for (const p of topPosts) {
   const btns = grid.querySelectorAll('.note-btn') as NodeListOf<HTMLElement>;
 
   let pinnedFolder: string | null = null;
-  let hoverTimeout: ReturnType<typeof setTimeout>;
+  let hoverTimer: ReturnType<typeof setTimeout>;
 
-  const serverData = (window as any).__NOTES_DATA__;
-  const previewMap: Record<string, any> = {};
-  serverData.articles.forEach((p: any) => { previewMap[p.id] = p; });
-  const folderMap: Record<string, any> = {};
-  serverData.folders.forEach((f: any) => { folderMap[f.name] = f; });
+  function hideAll() { preview.classList.add('hidden'); branchTree.classList.add('hidden'); previewContent.innerHTML = ''; branchTree.innerHTML = ''; }
 
-  function hideAllPanels() {
-    preview.classList.add('hidden');
-    branchTree.classList.add('hidden');
-    previewContent.innerHTML = '';
-    branchTree.innerHTML = '';
-  }
-
-  function resetAllBtns() {
+  function reset() {
     btns.forEach(b => { b.classList.remove('focused', 'dimmed'); });
     grid.classList.remove('shifted');
-    if (!pinnedFolder) hideAllPanels();
+    if (!pinnedFolder) hideAll();
   }
 
-  function showArticlePreview(postId: string) {
-    const data = previewMap[postId];
-    if (!data) return;
-    hideAllPanels();
+  function showPreview(btn: HTMLElement) {
+    hideAll();
     preview.classList.remove('hidden');
+    const t = btn.dataset.title || '', d = btn.dataset.date || '', e = btn.dataset.excerpt || '';
     previewContent.innerHTML = `
-      <div class="preview-header">
-        <h3>${esc(data.title)}</h3>
-        <div class="preview-date">${data.date ? new Date(data.date).toLocaleDateString('zh-CN', {year:'numeric',month:'long',day:'numeric'}) : ''}</div>
-      </div>
-      <div class="preview-excerpt">${esc(data.excerpt)}</div>
-      <a href="${BASE}/notes/${postId}" class="preview-link">阅读全文 →</a>
-    `;
+      <div class="preview-header"><h3>${esc(t)}</h3><div class="preview-date">${fmt(d)}</div></div>
+      <div class="preview-excerpt">${esc(e)}</div>
+      <a href="${B}/notes/${btn.dataset.id}" class="preview-link">阅读全文 →</a>`;
   }
 
-  function showBranch(folderName: string, pinned: boolean) {
-    const data = folderMap[folderName];
-    if (!data) return;
-    hideAllPanels();
+  function showBranch(btn: HTMLElement, pinned: boolean) {
+    hideAll();
     branchTree.classList.remove('hidden');
-    let html = `<div class="branch-title">📁 ${esc(folderName)}`;
-    if (pinned) html += '<span class="pin-indicator">已固定</span>';
-    html += '</div>';
-    data.posts.forEach((p: any) => {
-      html += `<a href="${BASE}/notes/${p.id}" class="branch-item is-post">📄 ${esc(p.title)}</a>`;
-    });
+    const name = btn.dataset.id!;
+    let html = `<div class="branch-title">📁 ${esc(name)}${pinned ? '<span class="pin-indicator">已固定</span>' : ''}</div>`;
+    try {
+      const children = JSON.parse(btn.dataset.children || '[]');
+      children.forEach((c: any) => {
+        html += `<a href="${B}/notes/${c.id}" class="branch-item is-post">📄 ${esc(c.title)}</a>`;
+      });
+    } catch(e) {}
     if (!pinned) html += '<div style="margin-top:12px;font-size:11px;color:#999;">点击文件夹固定此视图</div>';
     branchTree.innerHTML = html;
   }
 
-  function focusItem(btn: HTMLElement) {
-    const type = btn.dataset.type!;
-    const id = btn.dataset.id!;
-    resetAllBtns();
+  function focus(btn: HTMLElement) {
+    reset();
     btns.forEach(b => b.classList.add('dimmed'));
     btn.classList.remove('dimmed');
     btn.classList.add('focused');
     grid.classList.add('shifted');
-    if (type === 'post') showArticlePreview(id);
-    else showBranch(id, false);
+    if (btn.dataset.type === 'post') showPreview(btn);
+    else showBranch(btn, false);
   }
 
-  function unfocusAll() {
+  function unfocus() {
     if (pinnedFolder) {
-      resetAllBtns();
+      reset();
       const fb = grid.querySelector(`[data-id="${CSS.escape(pinnedFolder)}"]`) as HTMLElement;
-      if (fb) {
-        btns.forEach(b => b.classList.add('dimmed'));
-        fb.classList.remove('dimmed');
-        fb.classList.add('focused');
-        grid.classList.add('shifted');
-        showBranch(pinnedFolder, true);
-      }
+      if (fb) { btns.forEach(b => b.classList.add('dimmed')); fb.classList.remove('dimmed'); fb.classList.add('focused'); grid.classList.add('shifted'); showBranch(fb, true); }
       return;
     }
-    resetAllBtns();
+    reset();
   }
 
-  btns.forEach((btn) => {
-    btn.addEventListener('mouseenter', () => { clearTimeout(hoverTimeout); focusItem(btn); });
-    btn.addEventListener('mouseleave', () => {
-      hoverTimeout = setTimeout(() => { if (!pinnedFolder || btn.dataset.id !== pinnedFolder) unfocusAll(); }, 200);
-    });
+  btns.forEach(btn => {
+    btn.addEventListener('mouseenter', () => { clearTimeout(hoverTimer); focus(btn); });
+    btn.addEventListener('mouseleave', () => { hoverTimer = setTimeout(() => { if (!pinnedFolder || btn.dataset.id !== pinnedFolder) unfocus(); }, 200); });
     btn.addEventListener('click', (e) => {
       if (btn.dataset.type === 'folder') {
         e.preventDefault();
-        if (pinnedFolder === btn.dataset.id) { pinnedFolder = null; unfocusAll(); }
-        else { pinnedFolder = btn.dataset.id!; focusItem(btn); showBranch(btn.dataset.id!, true); }
-      } else {
-        window.location.href = `${BASE}/notes/${btn.dataset.id}`;
-      }
+        if (pinnedFolder === btn.dataset.id) { pinnedFolder = null; unfocus(); }
+        else { pinnedFolder = btn.dataset.id!; focus(btn); showBranch(btn, true); }
+      } else { window.location.href = `${B}/notes/${btn.dataset.id}`; }
     });
   });
 
-  const stage = document.getElementById('notes-stage')!;
-  stage.addEventListener('mouseleave', () => { hoverTimeout = setTimeout(() => { if (!pinnedFolder) unfocusAll(); }, 300); });
-  preview.addEventListener('mouseenter', () => clearTimeout(hoverTimeout));
-  branchTree.addEventListener('mouseenter', () => clearTimeout(hoverTimeout));
-  preview.addEventListener('mouseleave', () => { hoverTimeout = setTimeout(() => { if(!pinnedFolder) unfocusAll(); }, 300); });
-  branchTree.addEventListener('mouseleave', () => { hoverTimeout = setTimeout(() => { if(!pinnedFolder) unfocusAll(); }, 300); });
+  document.getElementById('notes-stage')!.addEventListener('mouseleave', () => { hoverTimer = setTimeout(() => { if (!pinnedFolder) unfocus(); }, 300); });
+  preview.addEventListener('mouseenter', () => clearTimeout(hoverTimer));
+  branchTree.addEventListener('mouseenter', () => clearTimeout(hoverTimer));
+  preview.addEventListener('mouseleave', () => { hoverTimer = setTimeout(() => { if(!pinnedFolder) unfocus(); }, 300); });
+  branchTree.addEventListener('mouseleave', () => { hoverTimer = setTimeout(() => { if(!pinnedFolder) unfocus(); }, 300); });
 
   function esc(s: string) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function fmt(d: string) { if (!d) return ''; try { return new Date(d).toLocaleDateString('zh-CN', {year:'numeric',month:'long',day:'numeric'}); } catch { return d; } }
 </script>
