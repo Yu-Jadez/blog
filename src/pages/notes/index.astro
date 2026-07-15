@@ -133,7 +133,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
 
   /* ── Expanded folder: button slides right ── */
   .tree-row.is-expanded .tree-item {
-    transform: translateX(36px);
+    transform: translateX(-48px);
   }
 
   /* ── Branch overlay base (hidden by default, no display:none!) ── */
@@ -263,48 +263,87 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       svgEl.classList.add('visible');
       branchCt.classList.add('visible');
 
-      const startX = rect.right + 10;
+      const startX = rect.right + 12;
       const startY = rect.top + rect.height / 2;
       const kids = folderNode.children;
       const count = kids.length;
-      const spacing = Math.max(52, Math.min(76, 360 / count));
+      const spacing = Math.max(50, Math.min(72, 340 / count));
       const totalH = spacing * (count - 1);
       const baseY = startY - totalH / 2;
-      const endX = startX + (isExp ? 100 : 16);
 
-      kids.forEach((child: any, i: number) => {
-        const endY = baseY + i * spacing;
-        const cx1 = startX + (isExp ? 30 : 5);
-        const cx2 = endX - (isExp ? 20 : 4);
-        const d = `M${startX},${startY} C${cx1},${startY} ${cx2},${endY} ${endX},${endY}`;
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', d);
-        svgEl.appendChild(path);
+      if (isExp) {
+        // ── Expanded: tree-branch diagram ──
+        const trunkEnd = startX + 24;
+        // Draw trunk line
+        const trunk = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        trunk.setAttribute('d', `M${startX},${startY} L${trunkEnd},${startY}`);
+        svgEl.appendChild(trunk);
 
-        // Sub button
-        const sub = document.createElement('button');
-        sub.className = 'branch-sub-btn';
-        sub.style.left = endX + 'px';
-        sub.style.top = (endY - 20) + 'px';
-        sub.innerHTML = `<span>${child.type === 'folder'
-          ? '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
-          : '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
-        }</span><span class="whitespace-nowrap">${child.type === 'folder' ? child.name : (child.title || child.name)}</span>${child.type === 'folder' && child.count ? `<span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-primary rounded-full">${child.count}</span>` : ''}`;
+        // Draw branch from trunk to each sub-button
+        const branchEndX = startX + 160;
+        kids.forEach((child: any, i: number) => {
+          const endY = baseY + i * spacing;
+          // Smooth bezier from trunk end to sub-button
+          const cx1 = trunkEnd + 40;
+          const cx2 = trunkEnd + 100;
+          const d = `M${trunkEnd},${startY} C${cx1},${startY} ${cx2},${endY} ${branchEndX},${endY}`;
+          const branch = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          branch.setAttribute('d', d);
+          branch.setAttribute('stroke', '#d1d5db');
+          branch.setAttribute('stroke-width', '1');
+          branch.setAttribute('fill', 'none');
+          branch.setAttribute('stroke-linecap', 'round');
+          svgEl.appendChild(branch);
 
-        // Bind events on sub buttons
-        if (child.type === 'folder') {
-          sub.addEventListener('click', (e) => { e.stopPropagation(); toggleFolder(child.path); });
-          sub.addEventListener('mouseenter', onBranchEnter);
-          sub.addEventListener('mouseleave', onBranchLeave);
-        } else {
-          sub.addEventListener('click', (e) => { e.stopPropagation(); window.location.href = `${BASE}/notes/${child.path}/`; });
-          sub.addEventListener('mouseenter', onBranchEnter);
-          sub.addEventListener('mouseleave', onBranchLeave);
-        }
-        branchCt.appendChild(sub);
-        // Trigger fade-in on next frame
-        requestAnimationFrame(() => { sub.classList.add('visible'); });
-      });
+          // Sub button
+          const sub = document.createElement('button');
+          sub.className = 'branch-sub-btn';
+          sub.style.left = (branchEndX + 4) + 'px';
+          sub.style.top = (endY - 20) + 'px';
+          sub.innerHTML = `<span>${child.type === 'folder'
+            ? '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+            : '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
+          }</span><span class="whitespace-nowrap">${child.type === 'folder' ? child.name : (child.title || child.name)}</span>${child.type === 'folder' && child.count ? `<span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-primary rounded-full">${child.count}</span>` : ''}`;
+          bindSubEvents(sub, child);
+          branchCt.appendChild(sub);
+          requestAnimationFrame(() => { sub.classList.add('visible'); });
+        });
+      } else {
+        // ── Hover: simple parallel branches, close distance ──
+        const endX = startX + 16;
+        kids.forEach((child: any, i: number) => {
+          const endY = baseY + i * spacing;
+          const cx1 = startX + 5;
+          const cx2 = endX - 4;
+          const d = `M${startX},${startY} C${cx1},${startY} ${cx2},${endY} ${endX},${endY}`;
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', d);
+          svgEl.appendChild(path);
+          const sub = document.createElement('button');
+          sub.className = 'branch-sub-btn';
+          sub.style.left = (endX + 2) + 'px';
+          sub.style.top = (endY - 20) + 'px';
+          sub.innerHTML = `<span>${child.type === 'folder'
+            ? '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+            : '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
+          }</span><span class="whitespace-nowrap">${child.type === 'folder' ? child.name : (child.title || child.name)}</span>`;
+          bindSubEvents(sub, child);
+          branchCt.appendChild(sub);
+          requestAnimationFrame(() => { sub.classList.add('visible'); });
+        });
+      }
+    }
+
+    function bindSubEvents(sub: HTMLElement, child: any) {
+      if (child.type === 'folder') {
+        sub.addEventListener('click', (e) => { e.stopPropagation(); toggleFolder(child.path); });
+        sub.addEventListener('mouseenter', onBranchEnter);
+        sub.addEventListener('mouseleave', onBranchLeave);
+      } else {
+        sub.addEventListener('click', (e) => { e.stopPropagation(); window.location.href = `${BASE}/notes/${child.path}/`; });
+        sub.addEventListener('mouseenter', onBranchEnter);
+        sub.addEventListener('mouseleave', onBranchLeave);
+      }
     }
 
     // ── Folder interaction ──
