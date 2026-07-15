@@ -164,7 +164,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     opacity: 0; visibility: hidden;
     transform: translateX(-12px);
-    transition: opacity 0.3s ease-out, visibility 0.3s ease-out, transform 0.4s cubic-bezier(0.25,0.1,0.25,1);
+    transition: opacity 0.3s ease-out, visibility 0.3s ease-out, transform 0.4s cubic-bezier(0.25,0.1,0.25,1), left 0.45s cubic-bezier(0.25,0.1,0.25,1), top 0.45s cubic-bezier(0.25,0.1,0.25,1);
     cursor: pointer;
   }
   .branch-sub-btn.visible {
@@ -178,6 +178,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
   #branch-svg { overflow: visible; }
   #branch-svg path {
     fill: none; stroke: #d1d5db; stroke-width: 1; stroke-linecap: round;
+    transition: d 0.45s cubic-bezier(0.25,0.1,0.25,1);
   }
   .dark #branch-svg path { stroke: #4b5563; }
 
@@ -227,6 +228,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     // ── State reset ──
     function resetAll() {
       activePath = null;
+      lastFolder = null;
       // Remove all dimmed states
       allRows().forEach(r => r.classList.remove('dimmed'));
       // Collapse all expanded folders
@@ -252,17 +254,15 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       });
     }
 
+    let lastFolder: string | null = null;
+
     // ── Draw branch lines + sub buttons ──
     function drawBranches(folderPath: string, folderNode: any) {
       const btn = btnEl(folderPath);
       if (!btn || !folderNode?.children?.length) return;
       const rect = btn.getBoundingClientRect();
       const isExp = !!expandedPaths[folderPath];
-
-      svgEl.innerHTML = '';
-      branchCt.innerHTML = '';
-      svgEl.classList.add('visible');
-      branchCt.classList.add('visible');
+      const same = lastFolder === folderPath;
 
       const startX = rect.right + 12;
       const startY = rect.top + rect.height / 2;
@@ -272,67 +272,73 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       const totalH = spacing * (count - 1);
       const baseY = startY - totalH / 2;
 
-      if (isExp) {
-        // ── Expanded: tree-branch diagram ──
-        const trunkEnd = startX + 24;
-        // Draw trunk line
+      // Tree-branch diagram (used for both hover & expanded, just distances differ)
+      const trunkEndX = startX + (isExp ? 24 : 8);
+      const branchEndX = startX + (isExp ? 160 : 36);
+
+      if (!same) {
+        // First time: create elements
+        svgEl.innerHTML = '';
+        branchCt.innerHTML = '';
+        svgEl.classList.add('visible');
+        branchCt.classList.add('visible');
+
+        // Trunk
         const trunk = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        trunk.setAttribute('d', `M${startX},${startY} L${trunkEnd},${startY}`);
+        trunk.setAttribute('d', `M${startX},${startY} L${trunkEndX},${startY}`);
+        trunk.classList.add('branch-path');
         svgEl.appendChild(trunk);
 
-        // Draw branch from trunk to each sub-button
-        const branchEndX = startX + 160;
         kids.forEach((child: any, i: number) => {
           const endY = baseY + i * spacing;
-          // Smooth bezier from trunk end to sub-button
-          const cx1 = trunkEnd + 40;
-          const cx2 = trunkEnd + 100;
-          const d = `M${trunkEnd},${startY} C${cx1},${startY} ${cx2},${endY} ${branchEndX},${endY}`;
-          const branch = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          branch.setAttribute('d', d);
-          branch.setAttribute('stroke', '#d1d5db');
-          branch.setAttribute('stroke-width', '1');
-          branch.setAttribute('fill', 'none');
-          branch.setAttribute('stroke-linecap', 'round');
-          svgEl.appendChild(branch);
+          const cx1 = trunkEndX + (isExp ? 40 : 8);
+          const cx2 = trunkEndX + (isExp ? 100 : 20);
+          const d = `M${trunkEndX},${startY} C${cx1},${startY} ${cx2},${endY} ${branchEndX},${endY}`;
+          const bp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          bp.setAttribute('d', d);
+          bp.classList.add('branch-path');
+          svgEl.appendChild(bp);
 
-          // Sub button
-          const sub = document.createElement('button');
-          sub.className = 'branch-sub-btn';
-          sub.style.left = (branchEndX + 4) + 'px';
-          sub.style.top = (endY - 20) + 'px';
-          sub.innerHTML = `<span>${child.type === 'folder'
-            ? '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
-            : '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
-          }</span><span class="whitespace-nowrap">${child.type === 'folder' ? child.name : (child.title || child.name)}</span>${child.type === 'folder' && child.count ? `<span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-primary rounded-full">${child.count}</span>` : ''}`;
-          bindSubEvents(sub, child);
+          const sub = createSubButton(child, branchEndX + 4, endY - 20);
           branchCt.appendChild(sub);
           requestAnimationFrame(() => { sub.classList.add('visible'); });
         });
       } else {
-        // ── Hover: simple parallel branches, close distance ──
-        const endX = startX + 16;
+        // Same folder, update existing paths & positions (CSS transition animates)
+        const paths = svgEl.querySelectorAll('.branch-path');
+        // Update trunk (first path)
+        if (paths[0]) paths[0].setAttribute('d', `M${startX},${startY} L${trunkEndX},${startY}`);
+        // Update branches
         kids.forEach((child: any, i: number) => {
           const endY = baseY + i * spacing;
-          const cx1 = startX + 5;
-          const cx2 = endX - 4;
-          const d = `M${startX},${startY} C${cx1},${startY} ${cx2},${endY} ${endX},${endY}`;
-          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          path.setAttribute('d', d);
-          svgEl.appendChild(path);
-          const sub = document.createElement('button');
-          sub.className = 'branch-sub-btn';
-          sub.style.left = (endX + 2) + 'px';
-          sub.style.top = (endY - 20) + 'px';
-          sub.innerHTML = `<span>${child.type === 'folder'
-            ? '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
-            : '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
-          }</span><span class="whitespace-nowrap">${child.type === 'folder' ? child.name : (child.title || child.name)}</span>`;
-          bindSubEvents(sub, child);
-          branchCt.appendChild(sub);
-          requestAnimationFrame(() => { sub.classList.add('visible'); });
+          const cx1 = trunkEndX + (isExp ? 40 : 8);
+          const cx2 = trunkEndX + (isExp ? 100 : 20);
+          const d = `M${trunkEndX},${startY} C${cx1},${startY} ${cx2},${endY} ${branchEndX},${endY}`;
+          const bp = paths[i + 1];
+          if (bp) bp.setAttribute('d', d);
+          // Update sub button position
+          const subs = branchCt.querySelectorAll('.branch-sub-btn');
+          const sub = subs[i] as HTMLElement;
+          if (sub) {
+            sub.style.left = (branchEndX + 4) + 'px';
+            sub.style.top = (endY - 20) + 'px';
+          }
         });
       }
+      lastFolder = folderPath;
+    }
+
+    function createSubButton(child: any, left: number, top: number) {
+      const sub = document.createElement('button');
+      sub.className = 'branch-sub-btn';
+      sub.style.left = left + 'px';
+      sub.style.top = top + 'px';
+      sub.innerHTML = `<span>${child.type === 'folder'
+        ? '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+        : '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
+      }</span><span class="whitespace-nowrap">${child.type === 'folder' ? child.name : (child.title || child.name)}</span>${child.type === 'folder' && child.count ? `<span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-primary rounded-full">${child.count}</span>` : ''}`;
+      bindSubEvents(sub, child);
+      return sub;
     }
 
     function bindSubEvents(sub: HTMLElement, child: any) {
