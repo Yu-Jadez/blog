@@ -357,15 +357,11 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     // ── Folder interaction ──
     function hoverFolder(path: string) {
       if (expandedPaths[path]) return;
-      if (activePath === path) return; // 已在悬停中，跳过重绘
+      if (activePath === path) return;
       const node = findNode(path);
       if (!node?.children?.length) return;
       activePath = path;
       previewEl.classList.remove('visible');
-      svgEl.classList.remove('visible');
-      branchCt.classList.remove('visible');
-      svgEl.innerHTML = '';
-      branchCt.innerHTML = '';
       dimOthers(path);
       drawBranches(path, node);
     }
