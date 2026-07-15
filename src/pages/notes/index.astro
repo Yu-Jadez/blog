@@ -5,82 +5,80 @@ import { BASE } from '../../consts';
 
 const allNotes = await getCollection('notes');
 
-// Build tree from flat notes list
+// Build tree
 interface TreeNode {
-  name: string;
-  type: 'folder' | 'doc';
-  path: string;
-  children?: TreeNode[];
-  count?: number;
-  title?: string;
-  date?: Date;
-  excerpt?: string;
-  tags?: string[];
+  name: string; type: 'folder' | 'doc'; path: string;
+  children?: TreeNode[]; count?: number;
+  title?: string; date?: Date; excerpt?: string; tags?: string[];
+  isIndex?: boolean;
 }
 
-function buildTree(notes: any[], prefix: string = ''): TreeNode[] {
+function buildTree(notes: any[], scope: string = ''): TreeNode[] {
   const folders = new Map<string, TreeNode>();
   const docs: TreeNode[] = [];
 
   for (const note of notes) {
-    if (note.id.endsWith('/index')) continue;
-    const parts = note.id.split('/');
-    const relative = prefix ? note.id.slice(prefix.length + 1) : note.id;
+    const id: string = note.id;
+    if (id.endsWith('/index')) continue;
 
-    if (parts.length === 1 || (prefix && parts.length === prefix.split('/').length + 1)) {
-      // This is a leaf in the current scope
-      if (relative.includes('/')) {
-        // Has sub-items → folder
-        const folderName = relative.split('/')[0];
-        if (!folders.has(folderName)) {
-          folders.set(folderName, {
-            name: folderName,
-            type: 'folder',
-            path: prefix ? `${prefix}/${folderName}` : folderName,
-            children: [],
-            count: 0,
-          });
-        }
-      } else {
-        // Direct file → document
+    const relative = scope ? (id.startsWith(scope + '/') ? id.slice(scope.length + 1) : '') : id;
+    if (!relative && !scope) {
+      // top-level doc
+      docs.push({
+        name: note.data.title,
+        type: 'doc', path: id,
+        title: note.data.title, date: note.data.date,
+        excerpt: note.body?.slice(0, 150), tags: note.data.tags,
+      });
+      continue;
+    }
+    if (!relative) continue;
+
+    const slashIdx = relative.indexOf('/');
+    if (slashIdx === -1) {
+      // Direct child doc
+      if (scope || id === relative) {
         docs.push({
-          name: note.data.title || relative.replace(/\.md$/, ''),
-          type: 'doc',
-          path: note.id,
-          title: note.data.title,
-          date: note.data.date,
-          excerpt: note.body?.slice(0, 150),
-          tags: note.data.tags,
+          name: note.data.title,
+          type: 'doc', path: id,
+          title: note.data.title, date: note.data.date,
+          excerpt: note.body?.slice(0, 150), tags: note.data.tags,
         });
+      }
+    } else {
+      // Has sub-path → first segment is a folder
+      const folderName = relative.slice(0, slashIdx);
+      if (!folders.has(folderName)) {
+        folders.set(folderName, { name: folderName, type: 'folder', path: scope ? `${scope}/${folderName}` : folderName, children: [], count: 0 });
       }
     }
   }
 
-  // Count children for folders
-  for (const [name, folder] of folders) {
-    const subNotes = notes.filter(n =>
-      n.id.startsWith(folder.path + '/') && !n.id.endsWith('/index')
+  // Count children for each folder
+  for (const [fname, folder] of folders) {
+    const fpath = scope ? `${scope}/${fname}` : fname;
+    const children = notes.filter((n: any) =>
+      n.id.startsWith(fpath + '/') && !n.id.endsWith('/index')
     );
-    folder.count = subNotes.length;
-    folder.children = buildTree(notes, folder.path);
+    folder.count = children.length;
+    folder.children = buildTree(notes, fpath);
   }
 
   docs.sort((a, b) => (b.date?.valueOf() || 0) - (a.date?.valueOf() || 0));
-  const folderList = [...folders.values()];
-
-  return [...folderList, ...docs];
+  return [...Array.from(folders.values()), ...docs];
 }
 
 const tree = buildTree(allNotes);
-
-// Serialize for client JS
 const treeJSON = JSON.stringify(tree).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
 const baseURL = BASE;
+
+function fmtDate(d: Date) {
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+}
 ---
 
 <Layout title="笔记">
-  <div id="notes-root">
-    <!-- Title -->
+  <div id="notes-root" class="max-w-2xl">
     <h1 class="text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2 pb-3 sm:pb-4 border-b-2 border-primary dark:text-white dark:border-[#b05223]">
       笔记 · Notes
     </h1>
@@ -88,34 +86,35 @@ const baseURL = BASE;
       这里记录我的学习笔记，温故而知新。
     </p>
 
-    <!-- Tree Container -->
-    <div id="notes-tree" class="relative">
+    <div id="notes-tree" class="flex flex-col gap-3">
       {tree.map((item) => (
-        <div
-          class="tree-row"
-          data-path={item.path}
-          data-type={item.type}
-          data-children={item.type === 'folder' ? item.children?.map(c => c.path).join(',') || '' : ''}
-        >
+        <div class="tree-row flex" data-path={item.path} data-type={item.type}>
           <button
-            class="tree-item group flex items-center gap-3 w-full text-left px-5 py-3 rounded-xl border border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm transition-all duration-300 dark:bg-[#0a1f47] dark:border-gray-700 dark:hover:border-gray-500"
-            data-path={item.path}
-            data-type={item.type}
+            class="tree-item inline-flex items-center gap-3 px-5 py-3 rounded-full border border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm transition-all duration-300 dark:bg-[#0a1f47] dark:border-gray-700 dark:hover:border-gray-500"
+            data-path={item.path} data-type={item.type}
           >
-            <span class="flex-shrink-0 text-xl">
-              {item.type === 'folder' ? '📁' : '📄'}
+            <!-- Icon -->
+            <span class="flex-shrink-0">
+              {item.type === 'folder' ? (
+                <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              ) : (
+                <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              )}
             </span>
-            <span class="flex-1 text-sm sm:text-base font-medium text-[#1A1A1A] dark:text-white truncate">
+            <!-- Label -->
+            <span class="flex-shrink text-sm sm:text-base font-medium text-[#1A1A1A] dark:text-white whitespace-nowrap">
               {item.type === 'folder' ? item.name : (item.title || item.name)}
             </span>
+            <!-- Badge for folders -->
             {item.type === 'folder' && item.count !== undefined && item.count > 0 && (
-              <span class="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-primary rounded-full dark:bg-red-500">
+              <span class="flex-shrink-0 inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 text-xs font-bold text-white bg-primary rounded-full dark:bg-red-500">
                 {item.count}
               </span>
             )}
+            <!-- Date for docs -->
             {item.type === 'doc' && item.date && (
-              <span class="flex-shrink-0 text-xs text-[#999] dark:text-gray-500">
-                {new Date(item.date).toLocaleDateString('zh-CN')}
+              <span class="flex-shrink-0 text-xs text-[#999] dark:text-gray-500 ml-1">
+                {fmtDate(item.date)}
               </span>
             )}
           </button>
@@ -124,307 +123,211 @@ const baseURL = BASE;
     </div>
 
     <!-- SVG overlay for branch lines -->
-    <svg id="branch-svg" class="fixed inset-0 pointer-events-none z-40" style="display:none;"></svg>
+    <svg id="branch-svg" class="fixed inset-0 pointer-events-none z-40" style="display:none"></svg>
 
-    <!-- Preview card (for documents) -->
-    <div id="preview-card" class="fixed z-50 bg-white rounded-xl shadow-lg border border-gray-200 p-5 max-w-xs opacity-0 pointer-events-none transition-opacity duration-300 dark:bg-[#0a1f47] dark:border-gray-600" style="display:none;">
+    <!-- Branch sub-items -->
+    <div id="branch-items" class="fixed inset-0 pointer-events-none z-50" style="display:none"></div>
+
+    <!-- Preview card -->
+    <div id="preview-card" class="fixed z-50 bg-white rounded-xl shadow-lg border border-gray-200 p-5 max-w-xs opacity-0 transition-opacity duration-300 dark:bg-[#0a1f47] dark:border-gray-600" style="display:none">
       <h3 class="text-base font-bold text-[#1A1A1A] mb-2 dark:text-white" id="preview-title"></h3>
       <p class="text-xs text-[#666666] leading-relaxed line-clamp-4 dark:text-gray-400" id="preview-excerpt"></p>
       <div class="mt-2 text-xs text-primary dark:text-red-400">点击阅读 →</div>
     </div>
-
-    <!-- Branch sub-items container -->
-    <div id="branch-items" class="fixed inset-0 pointer-events-none z-40" style="display:none;"></div>
   </div>
-
-  <style is:global>
-    .tree-item { transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1); }
-    .tree-row { transition: opacity 0.3s ease-out; position: relative; margin-bottom: 8px; }
-    .branch-btn {
-      transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
-      opacity: 0;
-      transform: translateX(-10px);
-      pointer-events: none;
-    }
-    .branch-btn.show {
-      opacity: 1;
-      transform: translateX(0);
-      pointer-events: auto;
-    }
-    #branch-svg line, #branch-svg path {
-      stroke: #cbd5e1;
-      stroke-width: 1.5;
-      fill: none;
-      transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
-    }
-    .dark #branch-svg line, .dark #branch-svg path { stroke: #475569; }
-  </style>
-
-  <script>
-    const treeData = JSON.parse('{treeJSON}');
-    const BASE = '{baseURL}';
-
-    let hoverTimeout: any = null;
-    let activeFolder: string | null = null;
-    let activeDoc: string | null = null;
-    let isExpanded: Record<string, boolean> = {};
-
-    const treeEl = document.getElementById('notes-tree')!;
-    const svgEl = document.getElementById('branch-svg') as unknown as SVGElement;
-    const previewCard = document.getElementById('preview-card')!;
-    const branchItems = document.getElementById('branch-items')!;
-
-    // Find item in tree recursively
-    function findItem(path: string, nodes = treeData): any {
-      for (const n of nodes) {
-        if (n.path === path) return n;
-        if (n.children) {
-          const found = findItem(path, n.children);
-          if (found) return found;
-        }
-      }
-      return null;
-    }
-
-    function getRow(path: string) {
-      return treeEl.querySelector(`[data-path="${CSS.escape(path)}"]`) as HTMLElement;
-    }
-
-    function getButton(path: string) {
-      return treeEl.querySelector(`button[data-path="${CSS.escape(path)}"]`) as HTMLElement;
-    }
-
-    function getAllRows() {
-      return treeEl.querySelectorAll('.tree-row') as NodeListOf<HTMLElement>;
-    }
-
-    // ── Folder: Draw branch lines ──
-    function drawBranches(folderPath: string, folderItem: any) {
-      const folderRow = getRow(folderPath);
-      if (!folderRow || !folderItem?.children?.length) return;
-
-      const folderBtn = folderRow.querySelector('button')!;
-      const btnRect = folderBtn.getBoundingClientRect();
-      const expanded = isExpanded[folderPath];
-
-      // Clear previous
-      svgEl.innerHTML = '';
-      branchItems.innerHTML = '';
-
-      const startX = btnRect.right + 12;
-      const startY = btnRect.top + btnRect.height / 2;
-      const childCount = folderItem.children.length;
-      const spacing = Math.max(56, Math.min(80, 400 / childCount));
-      const totalH = spacing * (childCount - 1);
-      const baseY = startY - totalH / 2;
-
-      svgEl.style.display = 'block';
-      branchItems.style.display = 'block';
-
-      folderItem.children.forEach((child: any, i: number) => {
-        const endY = baseY + i * spacing;
-        const midX = startX + (expanded ? 80 : 40);
-
-        // Draw Bezier curve
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        const d = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${startX + (expanded ? 180 : 80)} ${endY}`;
-        path.setAttribute('d', d);
-        path.setAttribute('stroke', '#cbd5e1');
-        path.setAttribute('stroke-width', '1.5');
-        path.setAttribute('fill', 'none');
-        path.setAttribute('stroke-linecap', 'round');
-        svgEl.appendChild(path);
-
-        // Create sub-item button
-        const btn = document.createElement('button');
-        btn.className = `branch-btn fixed flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-[#1A1A1A] shadow-sm hover:border-gray-300 hover:shadow-md z-50 dark:bg-[#0a1f47] dark:border-gray-600 dark:text-white`;
-        btn.style.left = `${startX + (expanded ? 180 : 80)}px`;
-        btn.style.top = `${endY - 20}px`;
-        btn.innerHTML = `<span class="text-base">${child.type === 'folder' ? '📁' : '📄'}</span>
-          <span class="truncate max-w-[160px]">${child.type === 'folder' ? child.name : (child.title || child.name)}</span>
-          ${child.type === 'folder' && child.count ? `<span class="flex-shrink-0 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-primary rounded-full">${child.count}</span>` : ''}`;
-
-        if (child.type === 'folder') {
-          btn.addEventListener('click', (e) => { e.stopPropagation(); toggleFolder(child.path); });
-          btn.addEventListener('mouseenter', (e) => { clearTimeout(hoverTimeout); hoverFolder(child.path); });
-          btn.addEventListener('mouseleave', () => { hoverTimeout = setTimeout(clearAll, 200); });
-        } else {
-          btn.addEventListener('click', (e) => { e.stopPropagation(); goToDoc(child.path); });
-          btn.addEventListener('mouseenter', (e) => { clearTimeout(hoverTimeout); hoverDoc(child.path, e); });
-          btn.addEventListener('mouseleave', () => { hoverTimeout = setTimeout(clearAll, 200); });
-        }
-
-        branchItems.appendChild(btn);
-        // Trigger show
-        requestAnimationFrame(() => btn.classList.add('show'));
-      });
-    }
-
-    // ── Folder: Hover ──
-    function hoverFolder(path: string) {
-      if (isExpanded[path]) return;
-      const item = findItem(path);
-      if (!item || !item.children?.length) return;
-
-      activeFolder = path;
-      activeDoc = null;
-      hidePreview();
-
-      // Fade others
-      getAllRows().forEach(r => {
-        if (r.dataset.path !== path) r.style.opacity = '0.08';
-        else r.style.opacity = '1';
-      });
-
-      drawBranches(path, item);
-    }
-
-    // ── Folder: Toggle expand ──
-    function toggleFolder(path: string) {
-      const folderBtn = getButton(path);
-      const folderRow = getRow(path);
-      if (!folderBtn || !folderRow) return;
-
-      isExpanded[path] = !isExpanded[path];
-      const expanded = isExpanded[path];
-      const item = findItem(path);
-
-      if (expanded) {
-        activeFolder = path;
-        getAllRows().forEach(r => {
-          if (r.dataset.path !== path) r.style.opacity = '0.05';
-        });
-        folderBtn.style.transform = 'translateX(40px)';
-        drawBranches(path, item);
-      } else {
-        clearAll();
-      }
-    }
-
-    // ── Document: Hover ──
-    function hoverDoc(path: string, e?: MouseEvent) {
-      const item = findItem(path);
-      if (!item) return;
-
-      activeDoc = path;
-      activeFolder = null;
-      clearBranches();
-
-      const btn = getButton(path);
-      if (!btn) return;
-      const rect = btn.getBoundingClientRect();
-
-      getAllRows().forEach(r => {
-        if (r.dataset.path !== path) r.style.opacity = '0.08';
-        else r.style.opacity = '1';
-      });
-
-      // Build excerpt from body or use existing
-      let excerpt = '';
-      if (item.excerpt) {
-        excerpt = item.excerpt;
-      } else {
-        // Try to extract from raw body
-        const raw = item._body || '';
-        excerpt = raw.replace(/[#*`\[\]()>!-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
-      }
-
-      previewCard.style.display = 'block';
-      previewCard.style.left = `${rect.right + 16}px`;
-      previewCard.style.top = `${rect.top - 10}px`;
-      document.getElementById('preview-title')!.textContent = item.title || item.name;
-      document.getElementById('preview-excerpt')!.textContent = excerpt || '暂无摘要';
-      requestAnimationFrame(() => { previewCard.style.opacity = '1'; });
-    }
-
-    function hidePreview() {
-      previewCard.style.opacity = '0';
-      previewCard.style.display = 'none';
-    }
-
-    function clearBranches() {
-      svgEl.innerHTML = '';
-      svgEl.style.display = 'none';
-      branchItems.innerHTML = '';
-      branchItems.style.display = 'none';
-    }
-
-    function clearAll() {
-      activeFolder = null;
-      activeDoc = null;
-      hidePreview();
-      clearBranches();
-
-      getAllRows().forEach(r => { r.style.opacity = '1'; });
-
-      // Reset folder buttons
-      Object.keys(isExpanded).forEach(p => {
-        if (isExpanded[p]) {
-          isExpanded[p] = false;
-          const btn = getButton(p);
-          if (btn) btn.style.transform = 'translateX(0)';
-        }
-      });
-    }
-
-    function goToDoc(path: string) {
-      window.location.href = `${BASE}/notes/${path}/`;
-    }
-
-    // ── Bind events ──
-    treeEl.addEventListener('mouseenter', (e: Event) => {
-      const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
-      if (!target) return;
-      const path = target.dataset.path!;
-      const type = target.dataset.type!;
-      clearTimeout(hoverTimeout);
-
-      if (type === 'folder' && !isExpanded[path]) {
-        hoverFolder(path);
-      } else if (type === 'doc') {
-        hoverDoc(path, e as MouseEvent);
-      }
-    }, true);
-
-    treeEl.addEventListener('mouseleave', (e: Event) => {
-      const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
-      if (!target) return;
-      hoverTimeout = setTimeout(() => {
-        if (!activeFolder || !isExpanded[activeFolder]) {
-          clearAll();
-        }
-      }, 300);
-    }, true);
-
-    // Click on folder buttons
-    treeEl.addEventListener('click', (e: Event) => {
-      const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
-      if (!target) return;
-      const path = target.dataset.path!;
-      const type = target.dataset.type!;
-
-      if (type === 'folder') {
-        e.preventDefault();
-        toggleFolder(path);
-      } else if (type === 'doc') {
-        goToDoc(path);
-      }
-    });
-
-    // Click outside to clear
-    document.addEventListener('click', (e: Event) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('#notes-tree') && !target.closest('#branch-items') && !target.closest('#preview-card')) {
-        clearAll();
-      }
-    });
-
-    // Hover on branch sub-items
-    branchItems.addEventListener('mouseenter', () => clearTimeout(hoverTimeout));
-    branchItems.addEventListener('mouseleave', () => {
-      hoverTimeout = setTimeout(() => {
-        if (!activeFolder || !isExpanded[activeFolder]) clearAll();
-      }, 500);
-    });
-  </script>
 </Layout>
+
+<style is:global>
+  .tree-item { transition: transform 0.4s cubic-bezier(0.25,0.1,0.25,1), opacity 0.3s ease-out, border-color 0.3s, box-shadow 0.3s; }
+  .tree-row { transition: opacity 0.3s ease-out; }
+  .branch-sub-btn {
+    position: fixed; z-index: 50; display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 9999px;
+    border: 1px solid #e5e7eb; background: #fff; color: #1A1A1A;
+    font-size: 14px; font-weight: 500; white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transition: opacity 0.3s ease-out, transform 0.4s cubic-bezier(0.25,0.1,0.25,1);
+    opacity: 0; transform: translateX(-12px); cursor: pointer;
+  }
+  .branch-sub-btn.show { opacity: 1; transform: translateX(0); }
+  .branch-sub-btn:hover { border-color: #9ca3af; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .dark .branch-sub-btn { background: #0a1f47; border-color: #374151; color: #e5e7eb; }
+  .dark .branch-sub-btn:hover { border-color: #6b7280; }
+  #branch-svg path {
+    fill: none; stroke: #d1d5db; stroke-width: 1.5; stroke-linecap: round;
+    transition: d 0.4s cubic-bezier(0.25,0.1,0.25,1);
+  }
+  .dark #branch-svg path { stroke: #4b5563; }
+</style>
+
+<script>
+  const treeData = JSON.parse('{treeJSON}') as any[];
+  const BASE = '{baseURL}';
+
+  let hoverTimer: any = null;
+  let activeFolder: string | null = null;
+  let expanded: Record<string, boolean> = {};
+
+  const treeEl = document.getElementById('notes-tree')!;
+  const svgEl = document.getElementById('branch-svg')!;
+  const branchCt = document.getElementById('branch-items')!;
+  const previewEl = document.getElementById('preview-card')!;
+  const previewTitle = document.getElementById('preview-title')!;
+  const previewExcerpt = document.getElementById('preview-excerpt')!;
+
+  function findNode(path: string, nodes = treeData): any | null {
+    for (const n of nodes) {
+      if (n.path === path) return n;
+      if (n.children) { const r = findNode(path, n.children); if (r) return r; }
+    }
+    return null;
+  }
+  function btnEl(path: string) { return treeEl.querySelector(`button[data-path="${CSS.escape(path)}"]`) as HTMLElement; }
+  function allRows() { return treeEl.querySelectorAll('.tree-row') as NodeListOf<HTMLElement>; }
+
+  function clearAll() {
+    activeFolder = null; hidePreview(); clearBranches();
+    allRows().forEach(r => { r.style.opacity = '1'; });
+    for (const p of Object.keys(expanded)) {
+      expanded[p] = false;
+      const b = btnEl(p); if (b) b.style.transform = '';
+    }
+  }
+
+  function clearBranches() { svgEl.innerHTML = ''; svgEl.style.display = 'none'; branchCt.innerHTML = ''; branchCt.style.display = 'none'; }
+  function hidePreview() { previewEl.style.opacity = '0'; previewEl.style.display = 'none'; }
+
+  function drawBranches(folderPath: string, folderNode: any) {
+    const btn = btnEl(folderPath);
+    if (!btn || !folderNode?.children?.length) return;
+    const rect = btn.getBoundingClientRect();
+    const isExp = expanded[folderPath];
+
+    svgEl.innerHTML = '';
+    branchCt.innerHTML = '';
+    svgEl.style.display = 'block';
+    branchCt.style.display = 'block';
+
+    const startX = rect.right + 10;
+    const startY = rect.top + rect.height / 2;
+    const kids = folderNode.children;
+    const count = kids.length;
+    const spacing = Math.max(52, Math.min(76, 360 / count));
+    const totalH = spacing * (count - 1);
+    const baseY = startY - totalH / 2;
+    const endX = startX + (isExp ? 180 : 80);
+
+    kids.forEach((child: any, i: number) => {
+      const endY = baseY + i * spacing;
+      const cx1 = startX + (isExp ? 60 : 25);
+      const cx2 = endX - (isExp ? 40 : 15);
+      const d = `M${startX},${startY} C${cx1},${startY} ${cx2},${endY} ${endX},${endY}`;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', d);
+      svgEl.appendChild(path);
+
+      const subBtn = document.createElement('button');
+      subBtn.className = 'branch-sub-btn';
+      subBtn.style.left = endX + 'px';
+      subBtn.style.top = (endY - 20) + 'px';
+      subBtn.innerHTML = `<span>${child.type === 'folder'
+        ? '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+        : '<svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
+      }</span><span class="whitespace-nowrap">${child.type === 'folder' ? child.name : (child.title || child.name)}</span>${child.type === 'folder' && child.count ? `<span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-primary rounded-full">${child.count}</span>` : ''}`;
+
+      if (child.type === 'folder') {
+        subBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleFolder(child.path); });
+        subBtn.addEventListener('mouseenter', () => { clearTimeout(hoverTimer); });
+        subBtn.addEventListener('mouseleave', () => { hoverTimer = setTimeout(() => { if (!expanded[child.path]) clearAll(); }, 400); });
+      } else {
+        subBtn.addEventListener('click', (e) => { e.stopPropagation(); location.href = `${BASE}/notes/${child.path}/`; });
+      }
+      branchCt.appendChild(subBtn);
+      requestAnimationFrame(() => { subBtn.classList.add('show'); });
+    });
+  }
+
+  function hoverFolder(path: string) {
+    if (expanded[path]) return;
+    const node = findNode(path);
+    if (!node?.children?.length) return;
+    activeFolder = path; hidePreview();
+    allRows().forEach(r => { r.style.opacity = r.dataset.path === path ? '1' : '0.08'; });
+    drawBranches(path, node);
+  }
+
+  function toggleFolder(path: string) {
+    const node = findNode(path);
+    if (!node?.children?.length) return;
+    expanded[path] = !expanded[path];
+    if (expanded[path]) {
+      activeFolder = path;
+      allRows().forEach(r => { r.style.opacity = r.dataset.path === path ? '1' : '0.06'; });
+      const btn = btnEl(path); if (btn) btn.style.transform = 'translateX(36px)';
+      drawBranches(path, node);
+    } else { clearAll(); }
+  }
+
+  function hoverDoc(path: string) {
+    const node = findNode(path);
+    if (!node) return;
+    activeFolder = null; clearBranches();
+    const btn = btnEl(path);
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    allRows().forEach(r => { r.style.opacity = r.dataset.path === path ? '1' : '0.08'; });
+
+    let excerpt = node.excerpt || '';
+    if (!excerpt) {
+      const raw = (node.body || node._body || '');
+      excerpt = raw.replace(/[#*`\[\]()>!-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    }
+
+    previewTitle.textContent = node.title || node.name || '';
+    previewExcerpt.textContent = excerpt || '暂无摘要';
+    previewEl.style.display = 'block';
+    previewEl.style.left = (rect.right + 16) + 'px';
+    previewEl.style.top = Math.max(16, rect.top - 10) + 'px';
+    requestAnimationFrame(() => { previewEl.style.opacity = '1'; });
+  }
+
+  // Event delegation
+  treeEl.addEventListener('mouseover', (e) => {
+    const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
+    if (!target) return;
+    clearTimeout(hoverTimer);
+    const path = target.dataset.path!;
+    const type = target.dataset.type!;
+    if (type === 'folder') { hoverFolder(path); }
+    else { hoverDoc(path); }
+  });
+
+  treeEl.addEventListener('mouseout', (e) => {
+    const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
+    if (!target) return;
+    hoverTimer = setTimeout(() => {
+      if (!activeFolder || !expanded[activeFolder]) clearAll();
+    }, 400);
+  });
+
+  treeEl.addEventListener('click', (e) => {
+    const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
+    if (!target) return;
+    const path = target.dataset.path!;
+    const type = target.dataset.type!;
+    if (type === 'folder') { e.preventDefault(); toggleFolder(path); }
+    else { location.href = `${BASE}/notes/${path}/`; }
+  });
+
+  document.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    if (!t.closest('#notes-tree') && !t.closest('#branch-items') && !t.closest('#preview-card')) {
+      clearAll();
+    }
+  });
+
+  branchCt.addEventListener('mouseenter', () => clearTimeout(hoverTimer));
+  branchCt.addEventListener('mouseleave', () => {
+    hoverTimer = setTimeout(() => { if (!activeFolder || !expanded[activeFolder]) clearAll(); }, 500);
+  });
+</script>
