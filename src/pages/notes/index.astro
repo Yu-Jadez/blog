@@ -108,6 +108,10 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       <p class="text-xs text-[#666666] leading-relaxed line-clamp-4 dark:text-gray-400" id="preview-excerpt"></p>
       <div class="mt-2 text-xs text-primary dark:text-red-400">点击阅读 →</div>
     </div>
+
+    <!-- Pass tree data via hidden div (Astro substitutes vars here, unlike <script>) -->
+    <div id="notes-data" style="display:none">{treeJSON}</div>
+    <meta name="notes-base" content={baseURL} />
   </div>
 </Layout>
 
@@ -182,8 +186,11 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
 
 <script>
   function initNotes() {
-    const treeData = JSON.parse('{treeJSON}') as any[];
-    const BASE = '{baseURL}';
+    const dataEl = document.getElementById('notes-data');
+    const baseEl = document.querySelector('meta[name="notes-base"]') as HTMLMetaElement;
+    if (!dataEl || !baseEl) return;
+    const treeData = JSON.parse(dataEl.textContent || '[]') as any[];
+    const BASE = baseEl.content;
 
     let hoverTimer: ReturnType<typeof setTimeout> | null = null;
     let activePath: string | null = null;
