@@ -7,220 +7,267 @@ import { BASE } from '../../consts';
 const notes = await getCollection('notes');
 
 const topPosts = notes.filter(n => !n.id.includes('/') && !n.id.endsWith('/index'));
-const catMap = new Map<string, { count: number; posts: any[] }>();
+const catMap = new Map<string, { count: number; posts: any[]; subCats: Map<string, any> }>();
 for (const n of notes) {
   const parts = n.id.split('/');
   if (parts.length >= 2 && !n.id.endsWith('/index')) {
     const cat = parts[0];
-    if (!catMap.has(cat)) catMap.set(cat, { count: 0, posts: [] });
+    if (!catMap.has(cat)) catMap.set(cat, { count: 0, posts: [], subCats: new Map() });
     const entry = catMap.get(cat)!;
-    entry.count++;
-    entry.posts.push(n);
+    if (parts.length === 2) { entry.count++; entry.posts.push(n); }
+    else if (parts.length >= 3) {
+      // Nested folder
+      const sub = parts[1];
+      if (!entry.subCats.has(sub)) entry.subCats.set(sub, []);
+      entry.subCats.get(sub)!.push(n);
+    }
   }
 }
 
 topPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
 const items: { type: 'folder' | 'post'; id: string; data?: any }[] = [];
-for (const [name, info] of catMap) {
-  items.push({ type: 'folder', id: name, data: { count: info.count, posts: info.posts } });
-}
-for (const p of topPosts) {
-  items.push({ type: 'post', id: p.id, data: p });
-}
+for (const [name, info] of catMap) items.push({ type: 'folder', id: name, data: info });
+for (const p of topPosts) items.push({ type: 'post', id: p.id, data: p });
 ---
 
 <Layout title="笔记">
-  <section class="interactive-notes">
+  <section class="tree-section">
     <h1 class="text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2 pb-3 sm:pb-4 border-b-2 border-primary dark:text-white dark:border-[#b05223]">笔记 · Notes</h1>
-    <p class="text-sm sm:text-base text-[#666666] mb-6 sm:mb-8 dark:text-gray-400">这里记录我的学习笔记，温故而知新。</p>
+    <p class="text-sm sm:text-base text-[#666666] mb-8 dark:text-gray-400">这里记录我的学习笔记，温故而知新。</p>
 
-    <div id="notes-stage" class="notes-stage">
-      <div id="notes-grid" class="notes-grid">
-        {items.map((item, i) => {
-          const label = item.type === 'folder' ? item.id : (item.data?.data?.title || item.id);
-          const icon = item.type === 'folder' ? '📁' : '📄';
-          const count = item.type === 'folder' ? item.data.count : null;
-          const title = item.type === 'post' ? item.data.data.title : '';
-          const date = item.type === 'post' ? String(item.data.data.date || '') : '';
-          const excerpt = item.type === 'post' ? stripMarkdown(item.data.body ?? '', 200) : '';
-          const children = item.type === 'folder' ? JSON.stringify(item.data.posts.map((p: any) => ({ id: p.id, title: p.data.title, date: p.data.date }))) : '';
-          return (
-            <button class="note-btn" data-index={i} data-type={item.type} data-id={item.id}
-              data-title={title} data-date={date} data-excerpt={excerpt}
-              data-children={children} data-count={String(count || '')}>
-              <span class="note-btn-icon">{icon}</span>
-              <span class="note-btn-label">{label}</span>
-              {count !== null && <span class="note-btn-count">{count}</span>}
+    <!-- Tree container -->
+    <div id="tree-root" class="tree-root">
+      {items.map((item, i) => {
+        const label = item.type === 'folder' ? item.id : (item.data?.data?.title || item.id);
+        const iconItem = item.type === 'folder' ? '📁' : '📄';
+        const count = item.type === 'folder' ? item.data.count : null;
+        const dateStr = item.type === 'post' ? (item.data.data.date ? new Date(item.data.data.date).toLocaleDateString('zh-CN', {year:'numeric',month:'long',day:'numeric'}) : '') : '';
+        const excerpt = item.type === 'post' ? stripMarkdown(item.data.body ?? '', 200) : '';
+
+        const childrenJson = item.type === 'folder'
+          ? JSON.stringify({
+              posts: item.data.posts.map((p:any) => ({ type:'post', id:p.id, title:p.data.title, date:p.data.date })),
+              subCats: [...item.data.subCats].map(([k,v]) => ({ type:'folder', name:k, posts: v.map((p:any) => ({ type:'post', id:p.id, title:p.data.title, date:p.data.date })) }))
+            })
+          : '';
+
+        const idStr = item.id.replace(/'/g, "\\'");
+        return (
+          <div class="tree-node-wrapper">
+            <button class="tree-node-btn" data-type={item.type} data-id={idStr}
+              data-label={label} data-icon={iconItem}
+              data-count={String(count || '')} data-date={dateStr}
+              data-excerpt={excerpt}
+              data-children={childrenJson}>
+              <span class="node-icon">{iconItem}</span>
+              <span class="node-label">{label}</span>
+              {count !== null && <span class="node-count">{count}</span>}
             </button>
-          );
-        })}
-      </div>
-
-      <div id="notes-preview" class="notes-preview hidden">
-        <div id="preview-content"></div>
-      </div>
-      <div id="branch-tree" class="branch-tree hidden"></div>
+            {/* Branch children will be inserted here by JS */}
+            <div class="tree-branch hidden"></div>
+          </div>
+        );
+      })}
     </div>
   </section>
 </Layout>
 
 <style>
-  .notes-stage { position: relative; min-height: 400px; }
-  .notes-grid {
-    display: flex; flex-wrap: wrap; gap: 12px;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    padding-bottom: 12px;
-  }
-  .notes-grid.shifted { transform: translateX(-20px); }
-  .note-btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 10px 20px; border-radius: 24px;
+  .tree-section { max-width: 700px; margin: 0 auto; }
+  .tree-root { display: flex; flex-direction: column; gap: 8px; position: relative; align-items: flex-start; }
+  .tree-node-wrapper { position: relative; display: flex; align-items: center; }
+
+  .tree-node-btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 12px 24px; border-radius: 28px;
     border: 2px solid #e0e0e0; background: #fff;
     font-size: 15px; font-weight: 500; color: #1A1A1A;
-    cursor: pointer; transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    white-space: nowrap; position: relative; font-family: inherit;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    cursor: pointer; transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+    white-space: nowrap; font-family: inherit;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04); position: relative; z-index: 2;
   }
-  .note-btn:hover {
-    border-color: #E63946; box-shadow: 0 4px 16px rgba(230,57,70,0.15);
-    transform: translateY(-2px);
-  }
-  .note-btn.focused {
+  .tree-node-btn:hover { border-color: #c0c0c0; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .tree-node-btn.active {
     border-color: #E63946; background: #E63946; color: #fff;
-    transform: translateX(-10px);
-    box-shadow: 0 8px 24px rgba(230,57,70,0.25);
+    box-shadow: 0 6px 20px rgba(230,57,70,0.3);
   }
-  .note-btn.focused .note-btn-count { background: rgba(255,255,255,0.3); color: #fff; }
-  .note-btn.dimmed { opacity: 0; pointer-events: none; transform: translateX(20px); }
-  .note-btn-icon { font-size: 18px; }
-  .note-btn-label { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-  .note-btn-count { font-size: 11px; background: #fde8ea; color: #E63946; padding: 2px 8px; border-radius: 10px; }
+  .tree-node-btn.active .node-count { background: rgba(255,255,255,0.3); color: #fff; }
+  .tree-node-btn.faded { opacity: 0.25; pointer-events: none; }
 
-  .dark .note-btn { background: #0a1f47; border-color: #2a4a6a; color: #ddd; }
-  .dark .note-btn:hover { border-color: #b05223; box-shadow: 0 4px 16px rgba(176,82,35,0.2); }
-  .dark .note-btn.focused { background: #b05223; border-color: #b05223; color: #fff; }
-  .dark .note-btn-count { background: rgba(176,82,35,0.2); color: #c97a4a; }
+  .node-icon { font-size: 20px; }
+  .node-label { max-width: 250px; overflow: hidden; text-overflow: ellipsis; }
+  .node-count { font-size: 11px; background: #fde8ea; color: #E63946; padding: 2px 8px; border-radius: 10px; }
 
-  .notes-preview, .branch-tree {
-    position: absolute; right: 0; top: 0; width: 380px; max-width: 45%;
-    background: #fff; border-radius: 16px; padding: 24px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.12); border: 1px solid #eee;
-    animation: slideIn 0.3s ease; max-height: 70vh; overflow-y: auto; z-index: 10;
+  /* Dark */
+  .dark .tree-node-btn { background: #0a1f47; border-color: #2a4a6a; color: #ddd; }
+  .dark .tree-node-btn:hover { border-color: #b05223; }
+  .dark .tree-node-btn.active { background: #b05223; border-color: #b05223; color: #fff; }
+  .dark .node-count { background: rgba(176,82,35,0.2); color: #c97a4a; }
+
+  /* Branch tree */
+  .tree-branch {
+    margin-left: 24px; display: flex; flex-direction: column; gap: 6px;
+    padding-left: 20px; border-left: 2px solid #e0e0e0;
+    animation: branchIn 0.25s ease;
+    min-width: 280px;
   }
-  .dark .notes-preview, .dark .branch-tree { background: #0a1f47; border-color: #2a4a6a; }
-  @keyframes slideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+  .dark .tree-branch { border-left-color: #3a5a7a; }
+  @keyframes branchIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
 
-  .preview-header { margin-bottom: 16px; }
-  .preview-header h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; color: #1A1A1A; }
-  .dark .preview-header h3 { color: #fff; }
-  .preview-header .preview-date { font-size: 12px; color: #999; }
-  .preview-excerpt { font-size: 14px; color: #555; line-height: 1.7; }
-  .dark .preview-excerpt { color: #bbb; }
-  .preview-link { display: inline-block; margin-top: 16px; padding: 8px 20px; background: #E63946; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; transition: background 0.2s; }
-  .preview-link:hover { background: #B71C1C; }
-
-  .branch-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #1A1A1A; display: flex; align-items: center; gap: 8px; }
-  .dark .branch-title { color: #fff; }
-  .branch-title .pin-indicator { font-size: 11px; background: #27ae60; color: #fff; padding: 2px 8px; border-radius: 8px; }
-  .branch-item { display: block; padding: 8px 12px; margin: 2px 0; border-radius: 8px; font-size: 14px; color: #1A1A1A; text-decoration: none; transition: background 0.15s; }
-  .branch-item:hover { background: #f5f5f5; }
-  .dark .branch-item { color: #ddd; }
-  .dark .branch-item:hover { background: #1a3050; }
-  .branch-item.is-folder { font-weight: 600; padding-left: 8px; border-left: 3px solid #E63946; }
-  .dark .branch-item.is-folder { border-left-color: #b05223; }
-  .branch-item.is-post { padding-left: 24px; font-size: 13px; color: #666; }
-  .dark .branch-item.is-post { color: #aaa; }
-
-  @media (max-width: 768px) {
-    .notes-preview, .branch-tree { position: relative; width: 100%; max-width: 100%; margin-top: 16px; }
-    .notes-grid.shifted { transform: none; }
-    .note-btn.focused { transform: translateX(0); }
+  .branch-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 16px; border-radius: 20px;
+    border: 1.5px solid #e8e8e8; background: #fafafa;
+    font-size: 13px; font-weight: 500; color: #333;
+    cursor: pointer; transition: all 0.2s; font-family: inherit; white-space: nowrap;
+    text-decoration: none;
   }
+  .branch-btn:hover { border-color: #E63946; background: #fff; }
+  .branch-btn.is-folder { border-color: #f0c0a0; background: #fef5f0; color: #a0522d; }
+  .branch-btn.is-folder:hover { border-color: #b05223; background: #fde8da; }
+  .branch-btn a { text-decoration: none; color: inherit; }
+  .dark .branch-btn { background: #061a35; border-color: #2a4a6a; color: #ccc; }
+  .dark .branch-btn:hover { border-color: #b05223; }
+  .dark .branch-btn.is-folder { border-color: #4a3020; background: #0d1f35; color: #c97a4a; }
+  .dark .branch-btn.is-folder:hover { border-color: #b05223; background: #152540; }
+
+  .branch-btn-icon { font-size: 16px; }
+  .branch-btn-count { font-size: 10px; background: #eee; padding: 1px 6px; border-radius: 8px; color: #888; }
+  .dark .branch-btn-count { background: #1a3050; color: #888; }
+
+  .node-pin-hint { font-size: 11px; color: #999; margin-top: 4px; }
+
+  /* Article preview card */
+  .article-preview {
+    padding: 16px 20px; background: #fff; border-radius: 12px;
+    border: 1.5px solid #eee; min-width: 260px; max-width: 360px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06); animation: branchIn 0.25s ease;
+  }
+  .dark .article-preview { background: #0a1f47; border-color: #2a4a6a; }
+  .article-preview h4 { font-size: 15px; font-weight: 700; margin-bottom: 4px; color: #1A1A1A; }
+  .dark .article-preview h4 { color: #fff; }
+  .article-preview .ap-date { font-size: 11px; color: #999; margin-bottom: 8px; }
+  .article-preview .ap-excerpt { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 10px; }
+  .dark .article-preview .ap-excerpt { color: #bbb; }
+  .article-preview .ap-link { color: #E63946; font-size: 13px; font-weight: 600; text-decoration: none; }
+  .dark .article-preview .ap-link { color: #c97a4a; }
 </style>
 
 <script>
   const B = '/blog';
-  const grid = document.getElementById('notes-grid')!;
-  const preview = document.getElementById('notes-preview')!;
-  const previewContent = document.getElementById('preview-content')!;
-  const branchTree = document.getElementById('branch-tree')!;
-  const btns = grid.querySelectorAll('.note-btn') as NodeListOf<HTMLElement>;
-
-  let pinnedFolder: string | null = null;
+  let pinnedId: string | null = null;
   let hoverTimer: ReturnType<typeof setTimeout>;
 
-  function hideAll() { preview.classList.add('hidden'); branchTree.classList.add('hidden'); previewContent.innerHTML = ''; branchTree.innerHTML = ''; }
+  function esc(s: string) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-  function reset() {
-    btns.forEach(b => { b.classList.remove('focused', 'dimmed'); });
-    grid.classList.remove('shifted');
-    if (!pinnedFolder) hideAll();
+  function clearAll() {
+    document.querySelectorAll('.tree-node-btn').forEach(b => { b.classList.remove('active', 'faded'); });
+    document.querySelectorAll('.tree-branch').forEach(b => { b.classList.add('hidden'); b.innerHTML = ''; });
   }
 
-  function showPreview(btn: HTMLElement) {
-    hideAll();
-    preview.classList.remove('hidden');
-    const t = btn.dataset.title || '', d = btn.dataset.date || '', e = btn.dataset.excerpt || '';
-    previewContent.innerHTML = `
-      <div class="preview-header"><h3>${esc(t)}</h3><div class="preview-date">${fmt(d)}</div></div>
-      <div class="preview-excerpt">${esc(e)}</div>
-      <a href="${B}/notes/${btn.dataset.id}" class="preview-link">阅读全文 →</a>`;
-  }
+  function showBranch(wrapper: HTMLElement, btn: HTMLElement, data: any) {
+    const branch = wrapper.querySelector('.tree-branch')!;
+    branch.classList.remove('hidden');
+    branch.innerHTML = '';
 
-  function showBranch(btn: HTMLElement, pinned: boolean) {
-    hideAll();
-    branchTree.classList.remove('hidden');
-    const name = btn.dataset.id!;
-    let html = `<div class="branch-title">📁 ${esc(name)}${pinned ? '<span class="pin-indicator">已固定</span>' : ''}</div>`;
-    try {
-      const children = JSON.parse(btn.dataset.children || '[]');
-      children.forEach((c: any) => {
-        html += `<a href="${B}/notes/${c.id}" class="branch-item is-post">📄 ${esc(c.title)}</a>`;
+    // Sub-folders
+    if (data.subCats) {
+      data.subCats.forEach((sc: any) => {
+        const b = document.createElement('button');
+        b.className = 'branch-btn is-folder';
+        b.innerHTML = `<span class="branch-btn-icon">📁</span>${esc(sc.name)}<span class="branch-btn-count">${sc.posts.length}</span>`;
+        b.onclick = (e) => {
+          e.stopPropagation();
+          window.location.href = `${B}/notes/${btn.dataset.id}/${sc.name}/`;
+        };
+        branch.appendChild(b);
       });
-    } catch(e) {}
-    if (!pinned) html += '<div style="margin-top:12px;font-size:11px;color:#999;">点击文件夹固定此视图</div>';
-    branchTree.innerHTML = html;
+    }
+
+    // Posts in folder
+    if (data.posts) {
+      data.posts.forEach((p: any) => {
+        const b = document.createElement('a');
+        b.className = 'branch-btn';
+        b.href = `${B}/notes/${p.id}`;
+        b.innerHTML = `<span class="branch-btn-icon">📄</span>${esc(p.title)}`;
+        branch.appendChild(b);
+      });
+    }
+  }
+
+  function showPreview(wrapper: HTMLElement, btn: HTMLElement) {
+    const branch = wrapper.querySelector('.tree-branch')!;
+    branch.classList.remove('hidden');
+    branch.innerHTML = `
+      <div class="article-preview">
+        <h4>${esc(btn.dataset.label || '')}</h4>
+        <div class="ap-date">${esc(btn.dataset.date || '')}</div>
+        <div class="ap-excerpt">${esc(btn.dataset.excerpt || '')}</div>
+        <a href="${B}/notes/${btn.dataset.id}" class="ap-link">阅读全文 →</a>
+      </div>`;
   }
 
   function focus(btn: HTMLElement) {
-    reset();
-    btns.forEach(b => b.classList.add('dimmed'));
-    btn.classList.remove('dimmed');
-    btn.classList.add('focused');
-    grid.classList.add('shifted');
-    if (btn.dataset.type === 'post') showPreview(btn);
-    else showBranch(btn, false);
+    clearAll();
+    const wrapper = btn.closest('.tree-node-wrapper')!;
+    document.querySelectorAll('.tree-node-btn').forEach(b => {
+      if (b !== btn) b.classList.add('faded');
+    });
+    btn.classList.add('active');
+
+    if (btn.dataset.type === 'folder') {
+      try {
+        const data = JSON.parse(btn.dataset.children || '{}');
+        showBranch(wrapper, btn, data);
+      } catch(e) {}
+    } else {
+      showPreview(wrapper, btn);
+    }
   }
 
   function unfocus() {
-    if (pinnedFolder) {
-      reset();
-      const fb = grid.querySelector(`[data-id="${CSS.escape(pinnedFolder)}"]`) as HTMLElement;
-      if (fb) { btns.forEach(b => b.classList.add('dimmed')); fb.classList.remove('dimmed'); fb.classList.add('focused'); grid.classList.add('shifted'); showBranch(fb, true); }
+    if (pinnedId) {
+      clearAll();
+      const pBtn = document.querySelector(`.tree-node-btn[data-id="${CSS.escape(pinnedId)}"]`) as HTMLElement;
+      if (pBtn) focus(pBtn);
       return;
     }
-    reset();
+    clearAll();
   }
 
-  btns.forEach(btn => {
-    btn.addEventListener('mouseenter', () => { clearTimeout(hoverTimer); focus(btn); });
-    btn.addEventListener('mouseleave', () => { hoverTimer = setTimeout(() => { if (!pinnedFolder || btn.dataset.id !== pinnedFolder) unfocus(); }, 200); });
+  document.querySelectorAll('.tree-node-btn').forEach(btn => {
+    btn.addEventListener('mouseenter', () => { clearTimeout(hoverTimer); focus(btn as HTMLElement); });
+    btn.addEventListener('mouseleave', () => {
+      hoverTimer = setTimeout(() => { if (!pinnedId || btn.dataset.id !== pinnedId) unfocus(); }, 250);
+    });
     btn.addEventListener('click', (e) => {
       if (btn.dataset.type === 'folder') {
         e.preventDefault();
-        if (pinnedFolder === btn.dataset.id) { pinnedFolder = null; unfocus(); }
-        else { pinnedFolder = btn.dataset.id!; focus(btn); showBranch(btn, true); }
-      } else { window.location.href = `${B}/notes/${btn.dataset.id}`; }
+        if (pinnedId === btn.dataset.id) {
+          pinnedId = null; unfocus();
+        } else {
+          pinnedId = btn.dataset.id!;
+          const wrapper = btn.closest('.tree-node-wrapper')!;
+          focus(btn as HTMLElement);
+          // Show pin hint
+          const branch = wrapper.querySelector('.tree-branch')!;
+          const hint = document.createElement('div');
+          hint.className = 'node-pin-hint';
+          hint.textContent = '已固定 · 点击文件夹取消';
+          branch.appendChild(hint);
+        }
+      } else {
+        window.location.href = `${B}/notes/${btn.dataset.id}`;
+      }
+    });
+
+    // Hover on branch items keeps focus
+    const wrapper = btn.closest('.tree-node-wrapper')!;
+    wrapper.addEventListener('mouseenter', () => { clearTimeout(hoverTimer); });
+    wrapper.addEventListener('mouseleave', () => {
+      hoverTimer = setTimeout(() => { if (!pinnedId) unfocus(); }, 300);
     });
   });
-
-  document.getElementById('notes-stage')!.addEventListener('mouseleave', () => { hoverTimer = setTimeout(() => { if (!pinnedFolder) unfocus(); }, 300); });
-  preview.addEventListener('mouseenter', () => clearTimeout(hoverTimer));
-  branchTree.addEventListener('mouseenter', () => clearTimeout(hoverTimer));
-  preview.addEventListener('mouseleave', () => { hoverTimer = setTimeout(() => { if(!pinnedFolder) unfocus(); }, 300); });
-  branchTree.addEventListener('mouseleave', () => { hoverTimer = setTimeout(() => { if(!pinnedFolder) unfocus(); }, 300); });
-
-  function esc(s: string) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-  function fmt(d: string) { if (!d) return ''; try { return new Date(d).toLocaleDateString('zh-CN', {year:'numeric',month:'long',day:'numeric'}); } catch { return d; } }
 </script>
