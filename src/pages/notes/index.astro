@@ -124,9 +124,10 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     transition: opacity 0.3s ease-out;
   }
 
-  /* ── Dimmed state (other items fade to 8%) ── */
+  /* ── Dimmed state (other items fully hidden) ── */
   .tree-row.dimmed {
-    opacity: 0.08;
+    opacity: 0;
+    visibility: hidden;
   }
 
   /* ── Expanded folder: button slides right ── */
