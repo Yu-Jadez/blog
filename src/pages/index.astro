@@ -7,11 +7,11 @@ import { stripMarkdown } from '../utils';
 
 const essays = (await getCollection('essays'))
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
-  .slice(0, 3);
+  .slice(0, 2);
 
 const notes = (await getCollection('notes'))
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
-  .slice(0, 3);
+  .slice(0, 2);
 ---
 
 <Layout title="主页">
