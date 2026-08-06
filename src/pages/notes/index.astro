@@ -387,15 +387,10 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     }
 
     function bindSubEvents(sub: HTMLElement, child: any) {
-      if (child.type === 'folder') {
-        sub.addEventListener('click', (e) => { e.stopPropagation(); toggleFolder(child.path); });
-        sub.addEventListener('mouseenter', onBranchEnter);
-        sub.addEventListener('mouseleave', onBranchLeave);
-      } else {
-        sub.addEventListener('click', (e) => { e.stopPropagation(); window.location.href = `${BASE}/notes/${child.path}/`; });
-        sub.addEventListener('mouseenter', onBranchEnter);
-        sub.addEventListener('mouseleave', onBranchLeave);
-      }
+      // 文件夹与文档子按钮都直接跳转到对应页面(文件夹不再展开动画)
+      sub.addEventListener('click', (e) => { e.stopPropagation(); window.location.href = `${BASE}/notes/${child.path}/`; });
+      sub.addEventListener('mouseenter', onBranchEnter);
+      sub.addEventListener('mouseleave', onBranchLeave);
     }
 
     // ── Folder interaction ──
@@ -408,23 +403,6 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       previewEl.classList.remove('visible');
       dimOthers(path);
       drawBranches(path, node);
-    }
-
-    function toggleFolder(path: string) {
-      const node = findNode(path);
-      if (!node?.children?.length) return;
-      const row = rowEl(path);
-      const wasExpanded = !!expandedPaths[path];
-
-      if (wasExpanded) {
-        resetAll();
-      } else {
-        expandedPaths[path] = true;
-        activePath = path;
-        if (row) row.classList.add('is-expanded');
-        dimOthers(path);
-        drawBranches(path, node);
-      }
     }
 
     // ── Document interaction ──
@@ -520,17 +498,8 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
       if (!target) return;
       const path = target.dataset.path!;
-      const type = target.dataset.type!;
-      if (type === 'folder') {
-        e.preventDefault();
-        if (isMobile()) {
-          window.location.href = `${BASE}/notes/${path}/`;
-        } else {
-          toggleFolder(path);
-        }
-      } else {
-        window.location.href = `${BASE}/notes/${path}/`;
-      }
+      // 文件夹与文档都直接跳转到对应页面(文件夹不再展开动画)
+      window.location.href = `${BASE}/notes/${path}/`;
     });
 
     // ── Event: click outside clears all ──
