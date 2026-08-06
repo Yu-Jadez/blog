@@ -67,8 +67,9 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     <div id="notes-tree" class="flex flex-col gap-3">
       {tree.map((item) => (
         <div class="tree-row flex" data-path={item.path} data-type={item.type}>
-          <button
-            class="tree-item inline-flex items-center gap-3 px-5 py-3 rounded-full border border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm dark:bg-[#0a1f47] dark:border-gray-700 dark:hover:border-gray-500"
+          <a
+            href={`${BASE}/notes/${item.path}/`}
+            class="tree-item no-underline inline-flex items-center gap-3 px-5 py-3 rounded-full border border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm dark:bg-[#0a1f47] dark:border-gray-700 dark:hover:border-gray-500"
             data-path={item.path} data-type={item.type}
           >
             <span class="flex-shrink-0">
@@ -91,7 +92,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
                 {fmtDate(item.date)}
               </span>
             )}
-          </button>
+          </a>
         </div>
       ))}
     </div>
@@ -178,7 +179,6 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
   #branch-svg { overflow: visible; }
   #branch-svg path {
     fill: none; stroke: #d1d5db; stroke-width: 1; stroke-linecap: round;
-    transition: d 0.45s cubic-bezier(0.25,0.1,0.25,1);
   }
   .dark #branch-svg path { stroke: #4b5563; }
 
@@ -308,7 +308,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
         kids.forEach((child: any, i: number) => {
           const endY = baseY + i * spacing;
           const cx = bezierMidX;
-          const d = `M${trunkEndX},${startY} Q${cx},${startY} ${cx},${endY} ${branchEndX},${endY}`;
+          const d = `M${trunkEndX},${startY} Q${cx},${startY} ${branchEndX},${endY}`;
           const bp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           bp.setAttribute('d', d);
           bp.classList.add('branch-path');
@@ -331,7 +331,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
         kids.forEach((child: any, i: number) => {
           const endY = baseY + i * spacing;
           const cx = bezierMidX;
-          const d = `M${trunkEndX},${startY} Q${cx},${startY} ${cx},${endY} ${branchEndX},${endY}`;
+          const d = `M${trunkEndX},${startY} Q${cx},${startY} ${branchEndX},${endY}`;
           const bp = paths[i + 1];
           if (bp) bp.setAttribute('d', d);
           // Update sub button position
@@ -374,8 +374,9 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     }
 
     function createSubButton(child: any, left: number, top: number) {
-      const sub = document.createElement('button');
-      sub.className = 'branch-sub-btn';
+      const sub = document.createElement('a');
+      sub.className = 'branch-sub-btn no-underline';
+      sub.href = `${BASE}/notes/${child.path}/`;
       sub.style.left = left + 'px';
       sub.style.top = top + 'px';
       sub.innerHTML = `<span>${child.type === 'folder'
@@ -387,8 +388,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     }
 
     function bindSubEvents(sub: HTMLElement, child: any) {
-      // 文件夹与文档子按钮都直接跳转到对应页面(文件夹不再展开动画)
-      sub.addEventListener('click', (e) => { e.stopPropagation(); window.location.href = `${BASE}/notes/${child.path}/`; });
+      // 文件夹与文档子按钮都是真实链接,点击由浏览器原生导航完成(对缓存/bfcache 更可靠)
       sub.addEventListener('mouseenter', onBranchEnter);
       sub.addEventListener('mouseleave', onBranchLeave);
     }
@@ -495,11 +495,10 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
 
     // ── Event: click on tree items ──
     treeEl.addEventListener('click', (e) => {
+      // 树项是真实 <a> 链接,跳转由浏览器原生导航完成;这里仅清理残留分支状态
       const target = (e.target as HTMLElement).closest('.tree-item') as HTMLElement;
       if (!target) return;
-      const path = target.dataset.path!;
-      // 文件夹与文档都直接跳转到对应页面(文件夹不再展开动画)
-      window.location.href = `${BASE}/notes/${path}/`;
+      resetAll();
     });
 
     // ── Event: click outside clears all ──
@@ -508,6 +507,11 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       if (!t.closest('#notes-tree') && !t.closest('#branch-items') && !t.closest('#preview-card') && !t.closest('#branch-svg')) {
         resetAll();
       }
+    });
+
+    // ── 从 bfcache/后退缓存恢复页面时,重置分支交互状态,避免残留展开状态干扰后续点击 ──
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) resetAll();
     });
   }
   initNotes();
