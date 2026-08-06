@@ -206,6 +206,14 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     let activePath: string | null = null;
     let expandedPaths: Record<string, boolean> = {};
 
+    // 全局跟踪鼠标位置,用于判断鼠标是否仍停留在分支区域内
+    let mouseX = 0;
+    let mouseY = 0;
+    document.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    }, { passive: true });
+
     const treeEl = document.getElementById('notes-tree')!;
     const svgEl = document.getElementById('branch-svg')!;
     const branchCt = document.getElementById('branch-items')!;
@@ -241,6 +249,11 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       svgEl.classList.remove('visible');
       branchCt.innerHTML = '';
       branchCt.classList.remove('visible');
+      // 重置分支区域容器尺寸
+      branchCt.style.left = '';
+      branchCt.style.top = '';
+      branchCt.style.width = '0';
+      branchCt.style.height = '0';
       // Hide preview
       previewEl.classList.remove('visible');
     }
@@ -305,6 +318,10 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
           branchCt.appendChild(sub);
           requestAnimationFrame(() => { sub.classList.add('visible'); });
         });
+
+        // 让子按钮容器覆盖整个分支区域(含子按钮之间的间隙),鼠标在分支内移动时不触发关闭
+        updateBranchContainer();
+        setTimeout(updateBranchContainer, 500); // 动画结束后修正矩形位置
       } else {
         // Same folder, update existing paths & positions (CSS transition animates)
         const paths = svgEl.querySelectorAll('.branch-path');
@@ -325,8 +342,35 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
             sub.style.top = (endY - 20) + 'px';
           }
         });
+        // 子按钮位置变化后同步更新容器矩形
+        updateBranchContainer();
       }
       lastFolder = folderPath;
+    }
+
+    // 将 #branch-items 容器扩展为覆盖所有可见子按钮的矩形,使子按钮之间的间隙也属于"分支区域",
+    // 鼠标在子按钮之间移动(包括慢速移动/短暂停顿)时不会被判定为离开分支
+    function updateBranchContainer() {
+      const subs = branchCt.querySelectorAll('.branch-sub-btn');
+      if (!subs.length) {
+        branchCt.style.width = '0';
+        branchCt.style.height = '0';
+        return;
+      }
+      let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
+      subs.forEach((s) => {
+        const r = s.getBoundingClientRect();
+        minL = Math.min(minL, r.left);
+        minT = Math.min(minT, r.top);
+        maxR = Math.max(maxR, r.right);
+        maxB = Math.max(maxB, r.bottom);
+      });
+      const pad = 12;
+      branchCt.style.position = 'fixed';
+      branchCt.style.left = (minL - pad) + 'px';
+      branchCt.style.top = (minT - pad) + 'px';
+      branchCt.style.width = (maxR - minL + pad * 2) + 'px';
+      branchCt.style.height = (maxB - minT + pad * 2) + 'px';
     }
 
     function createSubButton(child: any, left: number, top: number) {
@@ -413,10 +457,28 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
     function onBranchEnter() {
       if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
     }
-    function onBranchLeave() {
+
+    // 鼠标当前是否停留在分支区域(子按钮 / 连线 / 预览卡)内
+    function isOverBranchArea() {
+      const el = document.elementFromPoint(mouseX, mouseY);
+      if (!el) return false;
+      return !!el.closest('#branch-items, #branch-svg, #preview-card');
+    }
+
+    // 延迟关闭:点击固定展开的文件夹保持分支;悬停展开时若鼠标仍停留在分支区域(如正从一个子项移到另一个)则不关闭
+    function scheduleClose() {
       hoverTimer = setTimeout(() => {
-        if (!activePath || !expandedPaths[activePath]) resetAll();
+        if (activePath && expandedPaths[activePath]) return;
+        if (isOverBranchArea()) return;
+        resetAll();
       }, 200);
+    }
+
+    function onBranchLeave(e: MouseEvent) {
+      const related = e.relatedTarget as HTMLElement | null;
+      // 移回树区域(文件夹/文档按钮)时,由 treeEl 的 mouseover/mouseout 逻辑接管,不启动关闭
+      if (related && related.closest('#notes-tree')) return;
+      scheduleClose();
     }
 
     function isMobile() { return window.innerWidth < 768; }
@@ -442,9 +504,7 @@ function fmtDate(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.g
       if (related && (related.closest('#branch-items') || related.closest('#branch-svg') || related.closest('#preview-card'))) {
         return;
       }
-      hoverTimer = setTimeout(() => {
-        if (!activePath || !expandedPaths[activePath]) resetAll();
-      }, 200);
+      scheduleClose();
     });
 
     // ── Event: branch container hover ──
