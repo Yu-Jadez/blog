@@ -226,12 +226,19 @@ const zhCapitals: Record<string, string> = {
   'Nuuk': '努克',
 };
 
-// 南海诸岛主要群岛(经度, 纬度)公开坐标,并入中国版图标注
-const southChinaIslands: [number, number][] = [
-  [111.8, 16.5],  // 西沙群岛
-  [114.0, 9.0],   // 南沙群岛
-  [117.8, 15.1],  // 中沙群岛(黄岩岛)
-  [116.7, 20.7],  // 东沙群岛
+// 九段线(1947 年官方断续线端点坐标,公开数据),每段为一条短线
+const nineDashSegments: [number, number][][] = [
+  [[105.015, 23.146], [107.500, 19.964]],   // 北部湾以北
+  [[107.246, 19.071], [108.127, 17.547]],   // 海南岛西侧
+  [[110.000, 15.555], [110.812, 14.248]],   // 西沙群岛以西
+  [[110.755, 10.911], [109.779, 9.257]],    // 西沙群岛以西(金兰湾)
+  [[108.778, 5.723], [109.594, 4.083]],     // 南沙群岛西南
+  [[111.050, 3.505], [113.313, 4.485]],     // 曾母暗沙以南
+  [[114.551, 5.860], [116.729, 8.395]],     // 婆罗洲北岸
+  [[117.643, 9.632], [118.697, 11.527]],    // 巴拉望岛西南
+  [[119.246, 16.306], [119.519, 18.755]],   // 南沙群岛东北
+  [[119.876, 19.744], [121.423, 21.200]],   // 巴士海峡
+  [[121.948, 21.451], [122.612, 22.241]],   // 台湾台东以东
 ];
 
 const land: any = feature(world as any, (world as any).objects.countries as any);
@@ -286,10 +293,22 @@ const fullNameOf = (f: any) => fullNames[f.properties.name] ?? zhNameOf(f);
 const projection = geoNaturalEarth1().fitSize([1400, 700], land);
 const path = geoPath(projection);
 
-// 南海诸岛标注点投影到画布
-const islandSpots = southChinaIslands
-  .map(([lon, lat]) => projection([lon, lat]))
-  .filter((p): p is [number, number] => !!p);
+// 九段线投影:每段用线性插值生成 3 个点,渲染成平滑的短折线
+const interp = (a: [number, number], b: [number, number], t: number): [number, number] => [
+  a[0] + (b[0] - a[0]) * t,
+  a[1] + (b[1] - a[1]) * t,
+];
+const dashPaths = nineDashSegments
+  .map(([a, b]) => {
+    const pts = [a, interp(a, b, 0.33), interp(a, b, 0.66), b]
+      .map(([lon, lat]) => projection([lon, lat]))
+      .filter((p): p is [number, number] => !!p);
+    return pts.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `L${p[0]},${p[1]}`)).join('');
+  })
+  .filter((d) => d.length > 0);
+
+// "南海诸岛"文字标注位置(九段线包围区域内)
+const islandLabel = projection([112.5, 11.5]);
 
 const mapData = features.map((f) => ({
   d: path(f) ?? '',
@@ -318,17 +337,12 @@ const mapData = features.map((f) => ({
             style={c.cn ? undefined : `--hc: ${c.hc}`}
           />
         ))}
-        {islandSpots.map(([x, y]) => (
-          <circle
-            cx={x}
-            cy={y}
-            r="3.5"
-            class="island"
-            data-name="南海诸岛"
-            data-full="南海诸岛(中国)"
-            data-cap=""
-          />
+        {dashPaths.map((d) => (
+          <path d={d} class="dash-line" />
         ))}
+        {islandLabel && (
+          <text x={islandLabel[0]} y={islandLabel[1]} class="island-label">南海诸岛</text>
+        )}
       </svg>
       <div id="map-tip" class="map-tip"></div>
     </div>
@@ -373,15 +387,17 @@ const mapData = features.map((f) => ({
   .country.cn:hover {
     fill: #f87171;
   }
-  .island {
-    fill: #fecaca;
+  .dash-line {
+    fill: none;
     stroke: #e63946;
-    stroke-width: 1;
-    cursor: pointer;
-    transition: fill 0.15s ease-out;
+    stroke-width: 1.2;
+    stroke-linecap: round;
   }
-  .island:hover {
-    fill: #f87171;
+  .island-label {
+    fill: #e63946;
+    font-size: 13px;
+    font-weight: 600;
+    pointer-events: none;
   }
   .map-tip {
     position: absolute;
@@ -419,7 +435,7 @@ const mapData = features.map((f) => ({
 
   if (svg && tip) {
     svg.addEventListener('mouseover', (e) => {
-      const el = (e.target as HTMLElement).closest('.country, .island') as SVGElement;
+      const el = (e.target as HTMLElement).closest('.country') as SVGElement;
       if (!el) return;
       const name = el.getAttribute('data-name') ?? '';
       const full = el.getAttribute('data-full') ?? '';
@@ -432,7 +448,7 @@ const mapData = features.map((f) => ({
       tip.style.top = e.offsetY + 16 + 'px';
     });
     svg.addEventListener('mouseout', (e) => {
-      const el = (e.target as HTMLElement).closest('.country, .island') as SVGElement;
+      const el = (e.target as HTMLElement).closest('.country') as SVGElement;
       if (!el) return;
       tip.classList.remove('show');
     });
