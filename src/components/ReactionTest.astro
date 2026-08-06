@@ -1,0 +1,150 @@
+<div id="reaction-test" class="max-w-md mx-auto">
+  <!-- Game Info -->
+  <div class="text-center mb-6">
+    <p class="text-5xl mb-4">⚡</p>
+    <h2 class="text-2xl font-bold text-[#1A1A1A] mb-2">反应力测试</h2>
+    <p class="text-sm text-[#666666]">方块变绿后尽快点击,测出你的反应时间(完成 5 次取平均)</p>
+  </div>
+
+  <!-- Stage -->
+  <div
+    id="rt-stage"
+    class="flex items-center justify-center h-48 sm:h-56 rounded-2xl text-white text-lg sm:text-xl font-semibold select-none cursor-pointer transition-colors duration-100 bg-primary dark:bg-[#1c5172]"
+    role="button"
+    aria-label="反应力测试区域"
+  >
+    点击开始
+  </div>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-4 gap-2 mt-6 text-center">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 dark:bg-[#0a1f47] dark:border-gray-700">
+      <div class="text-xs text-[#999] mb-1 dark:text-gray-500">本次</div>
+      <div id="rt-last" class="text-lg font-bold text-[#1A1A1A] dark:text-white">-</div>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 dark:bg-[#0a1f47] dark:border-gray-700">
+      <div class="text-xs text-[#999] mb-1 dark:text-gray-500">平均</div>
+      <div id="rt-avg" class="text-lg font-bold text-[#1A1A1A] dark:text-white">-</div>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 dark:bg-[#0a1f47] dark:border-gray-700">
+      <div class="text-xs text-[#999] mb-1 dark:text-gray-500">最佳</div>
+      <div id="rt-best" class="text-lg font-bold text-[#1A1A1A] dark:text-white">-</div>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 dark:bg-[#0a1f47] dark:border-gray-700">
+      <div class="text-xs text-[#999] mb-1 dark:text-gray-500">次数</div>
+      <div id="rt-count" class="text-lg font-bold text-[#1A1A1A] dark:text-white">0 / 5</div>
+    </div>
+  </div>
+
+  <!-- Reset -->
+  <div class="text-center mt-6">
+    <button
+      id="rt-reset"
+      class="px-6 py-2.5 border-2 border-primary text-primary rounded-lg font-medium hover:bg-primary hover:text-white transition-colors dark:border-[#2c7cb0] dark:text-[#2c7cb0] dark:hover:bg-[#53a7dd] dark:hover:text-white dark:hover:border-[#53a7dd]"
+    >
+      重置
+    </button>
+  </div>
+</div>
+
+<style>
+  #rt-stage.waiting { background: #E63946; }
+  #rt-stage.go { background: #22c55e; }
+  #rt-stage.early { background: #f59e0b; }
+  #rt-stage.result { background: #22c55e; }
+  .dark #rt-stage { background: #1c5172; }
+  .dark #rt-stage.go { background: #15803d; }
+  .dark #rt-stage.early { background: #b45309; }
+  .dark #rt-stage.result { background: #15803d; }
+</style>
+
+<script>
+  function initReactionTest() {
+    const stage = document.getElementById('rt-stage');
+    const lastEl = document.getElementById('rt-last');
+    const avgEl = document.getElementById('rt-avg');
+    const bestEl = document.getElementById('rt-best');
+    const countEl = document.getElementById('rt-count');
+    const resetBtn = document.getElementById('rt-reset');
+    if (!stage || !resetBtn) return;
+
+    const MAX = 5;
+    let state = 'idle'; // idle | waiting | go
+    let t0 = 0;
+    let timer = null;
+    let scores = [];
+
+    function setStageClass(name) {
+      stage.classList.remove('waiting', 'go', 'early', 'result');
+      if (name) stage.classList.add(name);
+    }
+    function setText(t) { stage.textContent = t; }
+    function avg(arr) { return arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : '-'; }
+    function updateStats() {
+      lastEl.textContent = scores.length ? Math.round(scores[scores.length - 1]) : '-';
+      avgEl.textContent = avg(scores);
+      bestEl.textContent = scores.length ? Math.round(Math.min(...scores)) : '-';
+      countEl.textContent = `${scores.length} / ${MAX}`;
+    }
+
+    function enterWaiting() {
+      state = 'waiting';
+      setStageClass('waiting');
+      setText('等待变绿…');
+      const delay = 2000 + Math.random() * 3000; // 随机 2~5 秒
+      timer = setTimeout(() => {
+        state = 'go';
+        t0 = performance.now();
+        setStageClass('go');
+        setText('快点击!');
+      }, delay);
+    }
+
+    function enterIdle(text) {
+      state = 'idle';
+      setStageClass('');
+      setText(text);
+    }
+
+    function handleClick() {
+      if (state === 'idle' || state === 'result') {
+        // 已完成一组(5 次)后点击:重置重新开始
+        if (state === 'result' && scores.length >= MAX) {
+          scores = [];
+          updateStats();
+        }
+        enterWaiting();
+      } else if (state === 'waiting') {
+        // 太早点击:提示并重新开始
+        clearTimeout(timer);
+        setStageClass('early');
+        setText('太早了!再试一次');
+        setTimeout(() => {
+          enterIdle('点击开始');
+        }, 600);
+      } else if (state === 'go') {
+        const ms = performance.now() - t0;
+        scores.push(ms);
+        updateStats();
+        state = 'result';
+        setStageClass('result');
+        if (scores.length >= MAX) {
+          setText(`完成!平均 ${avg(scores)} ms,点击再来一组`);
+        } else {
+          setText(`${Math.round(ms)} ms,点击继续`);
+        }
+      }
+    }
+
+    function reset() {
+      clearTimeout(timer);
+      scores = [];
+      updateStats();
+      enterIdle('点击开始');
+    }
+
+    stage.addEventListener('click', handleClick);
+    resetBtn.addEventListener('click', reset);
+  }
+  initReactionTest();
+</script>
