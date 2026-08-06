@@ -1,11 +1,12 @@
 export const SITE_TITLE = "zyu的博客";
-export const SITE_DESCRIPTION = "zyu的个人博客 · 日常 · 笔记 · 娱乐";
+export const SITE_DESCRIPTION = "zyu的个人博客 · 日常 · 笔记 · 国际 · 娱乐";
 export const BASE = "/blog";
 
 export const NAV_ITEMS = [
   { label: "主页", href: "/" },
   { label: "日常", href: "/daily" },
   { label: "笔记", href: "/notes" },
+  { label: "国际", href: "/international" },
   { label: "娱乐", href: "/fun" },
 ];
 
