@@ -7,7 +7,13 @@
     "dev": "astro dev",
     "start": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "check": "astro check",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.3",
@@ -15,10 +21,21 @@
     "@tailwindcss/typography": "^0.5.20",
     "astro": "^5.18.2",
     "d3-geo": "^3.1.1",
-    "i18n-iso-countries": "^7.14.0",
     "tailwindcss": "^3.4.19",
     "topojson-client": "^3.1.0",
     "world-atlas": "^2.0.2",
     "world-countries": "^4.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@types/d3-geo": "^3.1.1",
+    "@types/topojson-client": "^3.1.5",
+    "eslint": "^10.8.0",
+    "eslint-plugin-astro": "^3.1.0",
+    "prettier": "^3.9.6",
+    "prettier-plugin-astro": "^0.14.1",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.66.0",
+    "vitest": "^4.1.10"
   }
 }

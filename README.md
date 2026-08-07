@@ -6,7 +6,7 @@
 
 - **[Astro](https://astro.build)** — 静态站点生成器
 - **[Tailwind CSS](https://tailwindcss.com)** — 样式框架
-- **[Decap CMS](https://decapcms.org)** — 后台内容管理（`/admin`）
+- **轻量自研后台**（`/admin`，GitHub Token 直连 API）
 - **GitHub Pages** — 免费托管
 
 ## 本地运行
@@ -16,6 +16,10 @@ npm install          # 安装依赖
 npm run dev          # 启动开发服务器 → http://localhost:4321
 npm run build        # 构建生产版本
 npm run preview      # 预览构建结果
+npm run check        # 类型检查（astro check）
+npm run lint         # ESLint 检查
+npm run format       # Prettier 格式化
+npm test             # 单元测试（Vitest）
 ```
 
 ## 如何部署到 GitHub Pages
@@ -33,10 +37,10 @@ site: 'https://<你的GitHub用户名>.github.io',
 base: '/<你的仓库名>',
 ```
 
-编辑 `public/admin/config.yml`，同样替换：
+编辑 `public/admin/index.html` 顶部的 API 地址，指向你的仓库：
 
-```yml
-repo: <你的GitHub用户名>/<你的仓库名>
+```js
+const API = 'https://api.github.com/repos/<你的GitHub用户名>/<你的仓库名>';
 ```
 
 ### 3. 推送代码
@@ -55,27 +59,25 @@ git push -u origin main
 2. Source 选择 **GitHub Actions**
 3. 推送后会自动触发部署
 
-### 5. 配置 Decap CMS OAuth（一次性）
+### 5. 配置后台 Token（一次性）
 
-Decap CMS 后台需要 OAuth 登录才能编辑内容。
+后台使用 GitHub 个人访问令牌（PAT）读写仓库内容。
 
-1. 打开 GitHub → Settings → Developer Settings → OAuth Apps
-2. 点击 **New OAuth App**
-3. 填写：
-   - Application name: `My Blog CMS`
-   - Homepage URL: `https://<你的用户名>.github.io/<仓库名>`
-   - Authorization callback URL: `https://api.decapcms.org/auth/callback`
-4. 创建后获得 **Client ID** 和 **Client Secret**
-5. 部署完成后，访问 `https://<你的用户名>.github.io/<仓库名>/admin`
-6. 首次打开会引导你使用 GitHub 账号登录授权
+1. 打开 [Fine-grained PAT 创建页](https://github.com/settings/personal-access-tokens/new)
+2. **Repository access** 选择 **Only select repositories**，勾选博客仓库
+3. 在 **Permissions** 中把 **Contents** 设为 **Read and write**
+4. 有效期建议 30~90 天
+5. 部署完成后，访问 `https://<你的用户名>.github.io/<仓库名>/admin`，填入 Token 登录
+
+> Token 只保存在当前浏览器会话中（关闭标签页后需重新登录），请勿授予整个账号的 `repo` 权限。
 
 ## 如何更新内容
 
 1. 打开 `https://<你的用户名>.github.io/<仓库名>/admin`
-2. 用 GitHub 账号登录
+2. 输入 GitHub Token 登录
 3. 在左侧选择"日常随笔"或"学习笔记"
 4. 点击"新建"开始写作
-5. 写完后点击"发布"，内容会自动更新到网站
+5. 写完后点击"保存并发布"，内容会自动提交到 GitHub，CI 随即自动部署
 
 ## 项目结构
 
@@ -93,6 +95,10 @@ src/
 ├── styles/global.css    # 全局样式
 ├── consts.ts            # 站点常量（标题、导航等）
 └── utils.ts             # 工具函数
+
+public/
+├── admin/               # 自研后台（GitHub Token 登录）
+└── images/              # 图片资源
 ```
 
 ## License

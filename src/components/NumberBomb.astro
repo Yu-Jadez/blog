@@ -46,7 +46,10 @@
 
   <!-- Restart Button (hidden by default) -->
   <div class="text-center mt-6 hidden" id="restart-area">
-    <button id="restart-btn" class="px-6 py-2.5 border-2 border-primary text-primary rounded-lg font-medium hover:bg-primary hover:text-white transition-colors">
+    <button
+      id="restart-btn"
+      class="px-6 py-2.5 border-2 border-primary text-primary rounded-lg font-medium hover:bg-primary hover:text-white transition-colors"
+    >
       再来一局 🔄
     </button>
   </div>
@@ -60,20 +63,20 @@
     let survived = 0;
     let gameOver = false;
 
-    const bombEmoji = document.getElementById('bomb-emoji');
-    const statusText = document.getElementById('status-text');
-    const survivedCount = document.getElementById('survived-count');
-    const rangeMin = document.getElementById('range-min');
-    const rangeMax = document.getElementById('range-max');
-    const guessInput = document.getElementById('guess-input');
-    const guessBtn = document.getElementById('guess-btn');
-    const message = document.getElementById('message');
-    const restartArea = document.getElementById('restart-area');
-    const restartBtn = document.getElementById('restart-btn');
+    const bombEmoji = document.getElementById('bomb-emoji')!;
+    const statusText = document.getElementById('status-text')!;
+    const survivedCount = document.getElementById('survived-count')!;
+    const rangeMin = document.getElementById('range-min')!;
+    const rangeMax = document.getElementById('range-max')!;
+    const guessInput = document.getElementById('guess-input') as HTMLInputElement;
+    const guessBtn = document.getElementById('guess-btn') as HTMLButtonElement;
+    const message = document.getElementById('message')!;
+    const restartArea = document.getElementById('restart-area')!;
+    const restartBtn = document.getElementById('restart-btn') as HTMLButtonElement;
 
     function updateRange() {
-      rangeMin.textContent = lo;
-      rangeMax.textContent = hi;
+      rangeMin.textContent = String(lo);
+      rangeMax.textContent = String(hi);
     }
 
     function handleGuess() {
@@ -101,7 +104,8 @@
         gameOver = true;
         bombEmoji.textContent = '💥';
         statusText.textContent = `你猜了 ${guess}，踩到炸弹了！`;
-        message.innerHTML = '<span class="text-red-500 text-lg font-bold">💣 炸弹爆炸！你出局了！</span>';
+        message.innerHTML =
+          '<span class="text-red-500 text-lg font-bold">💣 炸弹爆炸！你出局了！</span>';
         restartArea.classList.remove('hidden');
         guessBtn.disabled = true;
         guessInput.disabled = true;
@@ -122,7 +126,8 @@
         gameOver = true;
         bombEmoji.textContent = '💥';
         statusText.textContent = `只剩 ${secret} 了，无处可逃！`;
-        message.innerHTML = '<span class="text-red-500 text-lg font-bold">💣 炸弹爆炸！你出局了！</span>';
+        message.innerHTML =
+          '<span class="text-red-500 text-lg font-bold">💣 炸弹爆炸！你出局了！</span>';
         restartArea.classList.remove('hidden');
         guessBtn.disabled = true;
         guessInput.disabled = true;
@@ -132,7 +137,7 @@
       if (!gameOver && lo > hi) {
         // This shouldn't normally happen with the logic above, but just in case
         survived++;
-        survivedCount.textContent = survived;
+        survivedCount.textContent = String(survived);
         message.innerHTML = '<span class="text-green-500">🎉 这轮安全！新的一轮开始</span>';
         // Start new round
         secret = Math.floor(Math.random() * 100) + 1;

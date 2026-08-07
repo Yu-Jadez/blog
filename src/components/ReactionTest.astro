@@ -18,19 +18,27 @@
 
   <!-- Stats -->
   <div class="grid grid-cols-4 gap-2 mt-6 text-center">
-    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 dark:bg-[#0a1f47] dark:border-gray-700">
+    <div
+      class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 dark:bg-[#0a1f47] dark:border-gray-700"
+    >
       <div class="text-xs text-[#999] mb-1 dark:text-gray-500">本次</div>
       <div id="rt-last" class="text-lg font-bold text-[#1A1A1A] dark:text-white">-</div>
     </div>
-    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 dark:bg-[#0a1f47] dark:border-gray-700">
+    <div
+      class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 dark:bg-[#0a1f47] dark:border-gray-700"
+    >
       <div class="text-xs text-[#999] mb-1 dark:text-gray-500">平均</div>
       <div id="rt-avg" class="text-lg font-bold text-[#1A1A1A] dark:text-white">-</div>
     </div>
-    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 dark:bg-[#0a1f47] dark:border-gray-700">
+    <div
+      class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 dark:bg-[#0a1f47] dark:border-gray-700"
+    >
       <div class="text-xs text-[#999] mb-1 dark:text-gray-500">最佳</div>
       <div id="rt-best" class="text-lg font-bold text-[#1A1A1A] dark:text-white">-</div>
     </div>
-    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 dark:bg-[#0a1f47] dark:border-gray-700">
+    <div
+      class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 dark:bg-[#0a1f47] dark:border-gray-700"
+    >
       <div class="text-xs text-[#999] mb-1 dark:text-gray-500">次数</div>
       <div id="rt-count" class="text-lg font-bold text-[#1A1A1A] dark:text-white">0 / 5</div>
     </div>
@@ -48,42 +56,62 @@
 </div>
 
 <style>
-  #rt-stage.waiting { background: #E63946; }
-  #rt-stage.go { background: #22c55e; }
-  #rt-stage.early { background: #f59e0b; }
-  #rt-stage.result { background: #22c55e; }
-  .dark #rt-stage { background: #1c5172; }
-  .dark #rt-stage.go { background: #15803d; }
-  .dark #rt-stage.early { background: #b45309; }
-  .dark #rt-stage.result { background: #15803d; }
+  #rt-stage.waiting {
+    background: #e63946;
+  }
+  #rt-stage.go {
+    background: #22c55e;
+  }
+  #rt-stage.early {
+    background: #f59e0b;
+  }
+  #rt-stage.result {
+    background: #22c55e;
+  }
+  .dark #rt-stage {
+    background: #1c5172;
+  }
+  .dark #rt-stage.go {
+    background: #15803d;
+  }
+  .dark #rt-stage.early {
+    background: #b45309;
+  }
+  .dark #rt-stage.result {
+    background: #15803d;
+  }
 </style>
 
 <script>
   function initReactionTest() {
-    const stage = document.getElementById('rt-stage');
-    const lastEl = document.getElementById('rt-last');
-    const avgEl = document.getElementById('rt-avg');
-    const bestEl = document.getElementById('rt-best');
-    const countEl = document.getElementById('rt-count');
-    const resetBtn = document.getElementById('rt-reset');
+    const stage = document.getElementById('rt-stage') as HTMLDivElement;
+    const lastEl = document.getElementById('rt-last')!;
+    const avgEl = document.getElementById('rt-avg')!;
+    const bestEl = document.getElementById('rt-best')!;
+    const countEl = document.getElementById('rt-count')!;
+    const resetBtn = document.getElementById('rt-reset') as HTMLButtonElement;
     if (!stage || !resetBtn) return;
 
     const MAX = 5;
     let state = 'idle'; // idle | waiting | go
     let t0 = 0;
-    let timer = null;
-    let scores = [];
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let scores: number[] = [];
 
-    function setStageClass(name) {
+    function setStageClass(name: string) {
       stage.classList.remove('waiting', 'go', 'early', 'result');
       if (name) stage.classList.add(name);
     }
-    function setText(t) { stage.textContent = t; }
-    function avg(arr) { return arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : '-'; }
+    function setText(t: string) {
+      stage.textContent = t;
+    }
+    function avg(arr: number[]) {
+      return arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : '-';
+    }
     function updateStats() {
-      lastEl.textContent = scores.length ? Math.round(scores[scores.length - 1]) : '-';
-      avgEl.textContent = avg(scores);
-      bestEl.textContent = scores.length ? Math.round(Math.min(...scores)) : '-';
+      lastEl.textContent = scores.length ? String(Math.round(scores[scores.length - 1])) : '-';
+      avgEl.textContent = String(avg(scores));
+      bestEl.textContent = scores.length ? String(Math.round(Math.min(...scores))) : '-';
       countEl.textContent = `${scores.length} / ${MAX}`;
     }
 
@@ -100,7 +128,7 @@
       }, delay);
     }
 
-    function enterIdle(text) {
+    function enterIdle(text: string) {
       state = 'idle';
       setStageClass('');
       setText(text);
@@ -116,7 +144,7 @@
         enterWaiting();
       } else if (state === 'waiting') {
         // 太早点击:提示并重新开始
-        clearTimeout(timer);
+        if (timer) clearTimeout(timer);
         setStageClass('early');
         setText('太早了!再试一次');
         setTimeout(() => {
@@ -137,7 +165,7 @@
     }
 
     function reset() {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       scores = [];
       updateStats();
       enterIdle('点击开始');

@@ -14,11 +14,27 @@ const pathname = Astro.url.pathname;
         title="切换暗夜/日间模式"
       >
         <!-- 日间模式显示：月亮（切换到暗夜） -->
-        <svg class="dark:hidden w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          class="dark:hidden w-3.5 h-3.5 sm:w-4 sm:h-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>
         <!-- 暗夜模式显示：太阳（切换到日间） -->
-        <svg class="hidden dark:inline w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          class="hidden dark:inline w-3.5 h-3.5 sm:w-4 sm:h-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <circle cx="12" cy="12" r="5"></circle>
           <line x1="12" y1="1" x2="12" y2="3"></line>
           <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -30,7 +46,10 @@ const pathname = Astro.url.pathname;
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
         </svg>
       </button>
-      <a href={BASE + '/'} class="text-white font-bold text-sm sm:text-lg tracking-wide hover:text-white/90 transition-colors flex-shrink-0">
+      <a
+        href={BASE + '/'}
+        class="text-white font-bold text-sm sm:text-lg tracking-wide hover:text-white/90 transition-colors flex-shrink-0"
+      >
         {SITE_TITLE}
       </a>
     </div>
@@ -38,9 +57,10 @@ const pathname = Astro.url.pathname;
       {
         NAV_ITEMS.map((item) => {
           const fullHref = BASE + item.href;
-          const isActive = item.href === '/'
-            ? pathname === BASE + '/' || pathname === BASE
-            : pathname.startsWith(fullHref);
+          const isActive =
+            item.href === '/'
+              ? pathname === BASE + '/' || pathname === BASE
+              : pathname.startsWith(fullHref);
           return (
             <li>
               <a
@@ -62,7 +82,7 @@ const pathname = Astro.url.pathname;
 </header>
 
 <script>
-  const btn = document.getElementById('theme-toggle');
+  const btn = document.getElementById('theme-toggle')!;
   btn.addEventListener('click', () => {
     const html = document.documentElement;
     if (html.classList.contains('dark')) {

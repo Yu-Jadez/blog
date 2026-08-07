@@ -11,10 +11,10 @@ export function stripMarkdown(text: string, maxLen = 120): string {
     .replace(/!\[.*?\]\(.*?\)/g, '')
     // Remove links (keep text)
     .replace(/\[([^\]]+)\]\(.*?\)/g, '$1')
-    // Remove inline code
-    .replace(/`([^`]+)`/g, '$1')
     // Remove code blocks
     .replace(/```[\s\S]*?```/g, '')
+    // Remove inline code
+    .replace(/`([^`]+)`/g, '$1')
     // Remove unordered list markers
     .replace(/^[\s]*[-*+]\s+/gm, '')
     // Remove ordered list markers
